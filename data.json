@@ -1,5 +1,19 @@
 {
-  "cases": [],
+  "cases": [
+    {
+      "id": "mwag07fhvv5ndm",
+      "name": "K美英",
+      "admissionDate": "2026-11-10",
+      "icpDate": "2026-11-10",
+      "cognitive": "Dementia",
+      "ptTraining": "Yes",
+      "assistiveDevice": "No",
+      "status": "active",
+      "assessmentHistory": [],
+      "createdAt": "2026-11-10T08:43:10.109Z",
+      "updatedAt": "2026-11-10T08:43:10.109Z"
+    }
+  ],
   "devices": [],
   "bookings": []
 }
