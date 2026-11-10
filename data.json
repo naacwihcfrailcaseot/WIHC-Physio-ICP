@@ -1469,26 +1469,12 @@
   ],
   "devices": [
     {
-      "id": "mtmc22g1ntvasp",
-      "name": "GoPod",
-      "note": ""
-    },
-    {
       "id": "mtmc2hizsnb4al",
       "name": "Music Glove",
       "note": ""
     }
   ],
   "bookings": [
-    {
-      "id": "mtmcas274qspmr",
-      "deviceId": "mtmc22g1ntvasp",
-      "caseId": "mtgzwwulu462wo",
-      "weekday": "2",
-      "startTime": "11:00",
-      "endTime": "12:00",
-      "note": "樂富"
-    },
     {
       "id": "mtmcfe69n2qpyj",
       "deviceId": "mtmc2hizsnb4al",
@@ -1497,24 +1483,6 @@
       "startTime": "11:00",
       "endTime": "12:00",
       "note": "彩虹"
-    },
-    {
-      "id": "mtwiksk6ars09d",
-      "deviceId": "mtmc22g1ntvasp",
-      "caseId": "mth0hjw5rx65w9",
-      "weekday": "4",
-      "startTime": "14:30",
-      "endTime": "15:30",
-      "note": ""
-    },
-    {
-      "id": "mw8motcyb172n6",
-      "deviceId": "mtmc22g1ntvasp",
-      "caseId": "mtgzoyhu31i9gf",
-      "weekday": "1",
-      "startTime": "14:30",
-      "endTime": "15:30",
-      "note": "彩雲"
     }
   ]
 }
