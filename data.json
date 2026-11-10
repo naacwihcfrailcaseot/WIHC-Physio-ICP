@@ -1467,22 +1467,6 @@
       "updatedAt": "2026-10-30T06:28:16.458Z"
     }
   ],
-  "devices": [
-    {
-      "id": "mtmc2hizsnb4al",
-      "name": "Music Glove",
-      "note": ""
-    }
-  ],
-  "bookings": [
-    {
-      "id": "mtmcfe69n2qpyj",
-      "deviceId": "mtmc2hizsnb4al",
-      "caseId": "mtgzmwz5jh54ry",
-      "weekday": "1",
-      "startTime": "11:00",
-      "endTime": "12:00",
-      "note": "彩虹"
-    }
-  ]
+  "devices": [],
+  "bookings": []
 }
