@@ -1,0 +1,2887 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>物理治療個案資料庫 Physio Case Database</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #eef4f8;
+      --card: #ffffff;
+      --primary: #0c3a5a;
+      --primary-mid: #1a5f8a;
+      --primary-light: #e6f1f8;
+      --accent: #2b6cb0;
+      --success: #276749;
+      --warning: #975a16;
+      --danger: #9b2c2c;
+      --muted: #5a6a72;
+      --border: #c5d4e0;
+      --text: #142028;
+      --shadow: 0 1px 2px rgb(12 58 90 / 0.07), 0 1px 3px rgb(12 58 90 / 0.05);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #0a2a40 0%, #1a5f8a 55%, #2b6cb0 100%);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 2px 8px rgb(10 42 64 / 0.25);
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.02em; }
+    header p { opacity: 0.88; font-size: 0.82rem; margin-top: 0.15rem; }
+    .header-row {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 0.75rem;
+    }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .sync-status {
+      display: flex; align-items: center; gap: 0.45rem;
+      font-size: 0.78rem; background: rgba(255,255,255,0.12);
+      padding: 0.28rem 0.65rem; border-radius: 999px;
+    }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+    .sync-dot.ok { background: #68d391; }
+    .sync-dot.syncing { background: #f6e05e; animation: pulse 1s infinite; }
+    .sync-dot.err { background: #fc8181; }
+    .sync-dot.local { background: #a0aec0; }
+    @keyframes pulse { 50% { opacity: 0.4; } }
+
+    .container { max-width: 1480px; margin: 0 auto; padding: 1rem 1.25rem 2rem; }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 0.9rem;
+    }
+    @media (max-width: 700px) { .stats-bar { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 0.8rem 0.9rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat-card .num { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+    .stat-card .label { font-size: 0.75rem; color: var(--muted); margin-top: 0.08rem; }
+    .stat-card.success .num { color: var(--success); }
+    .stat-card.warning .num { color: var(--warning); }
+    .stat-card.danger .num { color: var(--danger); }
+    .caseload-bar {
+      height: 5px; background: #e2e8f0; border-radius: 3px;
+      overflow: hidden; margin-top: 0.3rem;
+    }
+    .caseload-fill {
+      height: 100%; background: var(--primary-mid); border-radius: 3px; transition: width 0.3s;
+    }
+    .caseload-fill.near { background: var(--warning); }
+    .caseload-fill.full { background: var(--danger); }
+
+    .form-card, .list-card, .review-schedule, .chart-wrap {
+      background: var(--card);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .form-card { margin-bottom: 0.9rem; }
+    .list-card { margin-bottom: 0.9rem; }
+    .card-header {
+      padding: 0.5rem 0.95rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    .form-card .card-body { padding: 0.75rem 0.95rem; }
+    .list-card .card-body { padding: 0.7rem 0.95rem 0.95rem; }
+
+    .form-inline {
+      display: flex; flex-wrap: wrap; gap: 0.55rem 0.75rem; align-items: flex-end;
+    }
+    .form-inline .form-group {
+      display: flex; flex-direction: column; gap: 0.18rem; min-width: 0;
+    }
+    .form-inline .form-group.name { flex: 1 1 130px; min-width: 110px; }
+    .form-inline .form-group.date { flex: 0 1 125px; }
+    .form-inline .form-group.select { flex: 0 1 115px; }
+    .form-inline .form-actions {
+      display: flex; gap: 0.4rem; flex: 0 0 auto; padding-bottom: 1px;
+    }
+    label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+    input, select {
+      padding: 0.38rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.85rem;
+      color: var(--text);
+      background: #fff;
+      width: 100%;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.15);
+    }
+
+    button {
+      cursor: pointer; border: none; border-radius: 5px;
+      padding: 0.38rem 0.8rem; font-size: 0.82rem; font-weight: 500;
+      transition: background 0.15s, transform 0.1s; white-space: nowrap;
+    }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary-mid); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary); }
+    .btn-secondary { background: #e2e8f0; color: #2d3748; }
+    .btn-secondary:hover:not(:disabled) { background: #cbd5e0; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #1c4532; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warning { background: var(--warning); color: #fff; }
+    .btn-warning:hover:not(:disabled) { background: #744210; }
+    .btn-danger:hover:not(:disabled) { background: #742a2a; }
+    .btn-sm { padding: 0.26rem 0.5rem; font-size: 0.75rem; }
+    .btn-header {
+      background: rgba(255,255,255,0.15); color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      font-size: 0.78rem; padding: 0.28rem 0.65rem;
+    }
+    .btn-header:hover { background: rgba(255,255,255,0.25); }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 0.9rem;
+    }
+    @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+    .chart-wrap {
+      padding: 0.75rem 0.65rem 0.4rem;
+      height: 290px;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .chart-wrap h3 {
+      font-size: 0.85rem; text-align: center; margin-bottom: 0.3rem;
+      color: var(--primary); font-weight: 600; flex-shrink: 0;
+    }
+    .chart-canvas-box { flex: 1; min-height: 0; position: relative; }
+
+    .review-schedule { margin-bottom: 0.5rem; }
+    .review-schedule .card-body { padding: 0.8rem 0.95rem 0.95rem; }
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 0.7rem;
+    }
+    .month-card {
+      border: 1px solid var(--border); border-radius: 6px;
+      overflow: hidden; background: #f7fafc;
+    }
+    .month-card.overdue-month { border-color: #feb2b2; background: #fff5f5; }
+    .month-card.due-month { border-color: #fbd38d; background: #fffaf0; }
+    .month-card.current-month { border-color: #90cdf4; background: #ebf8ff; }
+    .month-title {
+      padding: 0.4rem 0.65rem; font-size: 0.8rem; font-weight: 600;
+      color: var(--primary); border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255,255,255,0.65);
+    }
+    .month-title .count {
+      font-size: 0.7rem; font-weight: 600; color: var(--muted);
+      background: #e2e8f0; padding: 0.08rem 0.4rem; border-radius: 999px;
+    }
+    .month-card.overdue-month .month-title .count { background: #fed7d7; color: #9b2c2c; }
+    .month-card.due-month .month-title .count { background: #feebc8; color: #975a16; }
+    .month-card.current-month .month-title .count { background: #bee3f8; color: #2b6cb0; }
+    .month-cases {
+      list-style: none; padding: 0.35rem 0.5rem 0.45rem; margin: 0;
+      max-height: 170px; overflow-y: auto;
+    }
+    .month-cases li {
+      font-size: 0.78rem; padding: 0.25rem 0.3rem;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 0.35rem; border-radius: 3px;
+    }
+    .month-cases li:hover { background: rgba(0,0,0,0.03); }
+    .month-cases .case-name {
+      font-weight: 500; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .month-cases .case-due { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+    .month-cases .case-due.overdue { color: var(--danger); font-weight: 600; }
+    .month-cases .case-due.due-soon { color: var(--warning); font-weight: 600; }
+    .schedule-empty, .empty {
+      text-align: center; padding: 1.2rem; color: var(--muted); font-size: 0.85rem;
+    }
+    .schedule-legend {
+      display: flex; gap: 0.7rem; flex-wrap: wrap;
+      font-size: 0.72rem; color: var(--muted); font-weight: 400;
+    }
+    .schedule-legend span { display: flex; align-items: center; gap: 0.25rem; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+    .gt-section { margin-bottom: 0.9rem; }
+    .gt-section .card-body { padding: 0.75rem 0.95rem 0.95rem; }
+    .gt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 0.85rem;
+    }
+    @media (max-width: 900px) { .gt-grid { grid-template-columns: 1fr; } }
+    .gt-panel {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #f7fafc;
+      overflow: hidden;
+    }
+    .gt-panel-title {
+      padding: 0.4rem 0.65rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.7);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .gt-panel-body { padding: 0.55rem 0.65rem 0.65rem; }
+    .gt-form-row {
+      display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: flex-end; margin-bottom: 0.55rem;
+    }
+    .gt-form-row .form-group { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .gt-form-row .fg-name { flex: 1 1 120px; }
+    .gt-form-row .fg-note { flex: 1 1 100px; }
+    .gt-form-row .fg-date { flex: 0 1 130px; }
+    .gt-form-row .fg-time { flex: 0 1 100px; }
+    .gt-form-row .fg-select { flex: 1 1 130px; min-width: 110px; }
+    .gt-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+    .gt-list li {
+      display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;
+      padding: 0.4rem 0.35rem; border-bottom: 1px solid #e2e8f0; font-size: 0.8rem;
+    }
+    .gt-list li:last-child { border-bottom: none; }
+    .gt-list li:hover { background: rgba(0,0,0,0.03); }
+    .gt-list .gt-main { min-width: 0; flex: 1; }
+    .gt-list .gt-name { font-weight: 600; color: var(--text); }
+    .gt-list .gt-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+    .gt-list .gt-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+    .gt-conflict {
+      background: #fff5f5; border: 1px solid #feb2b2; color: #9b2c2c;
+      border-radius: 5px; padding: 0.4rem 0.55rem; font-size: 0.78rem; margin-bottom: 0.5rem;
+      display: none;
+    }
+    .gt-conflict.show { display: block; }
+    .badge-device { background: #bee3f8; color: #2a4365; }
+    tr.case-main-row { cursor: pointer; }
+    tr.case-main-row:hover { background: #f0f5f9; }
+    tr.case-main-row.is-open { background: #e6f1f8; }
+    tr.case-detail-row td {
+      background: #f7fafc; border-top: none;
+      padding: 0.75rem 0.9rem 1rem;
+    }
+    .detail-panel { max-width: 100%; }
+    .detail-panel h4 {
+      font-size: 0.85rem; color: var(--primary); margin: 0 0 0.45rem;
+    }
+    .detail-grid {
+      display: grid; grid-template-columns: 1.1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+    .assess-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .assess-table th, .assess-table td {
+      border: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left;
+    }
+    .assess-table th { background: var(--primary-light); color: var(--primary); }
+    .detail-charts { display: flex; flex-direction: column; gap: 0.65rem; }
+    .detail-chart-box {
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; padding: 0.4rem 0.5rem 0.3rem;
+    }
+    .detail-chart-box h5 {
+      font-size: 0.75rem; color: var(--primary); margin: 0 0 0.25rem; font-weight: 600;
+    }
+    .detail-chart-box .chart-h { height: 160px; position: relative; }
+    .detail-empty { font-size: 0.8rem; color: var(--muted); padding: 0.5rem 0; }
+    .modal.wide { max-width: 520px; }
+    .review-form .form-group { margin-bottom: 0.55rem; }
+    .review-form label { display: block; font-size: 0.78rem; font-weight: 600; margin-bottom: 0.2rem; color: var(--primary); }
+    .review-form input, .review-form select, .review-form textarea {
+      width: 100%; padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 5px; font-size: 0.85rem;
+    }
+    .review-form .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td {
+      padding: 0.5rem 0.6rem; text-align: left;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    th {
+      background: #edf2f7; font-weight: 600; color: var(--primary);
+      position: sticky; top: 0; font-size: 0.76rem;
+    }
+    tr:hover td { background: #f7fafc; }
+    .badge {
+      display: inline-block; padding: 0.1rem 0.4rem;
+      border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+    }
+    .badge-normal { background: #c6f6d5; color: #22543d; }
+    .badge-mci { background: #fefcbf; color: #744210; }
+    .badge-major { background: #feebc8; color: #7b341e; }
+    .badge-dementia { background: #fed7d7; color: #742a2a; }
+    .badge-yes { background: #bee3f8; color: #2a4365; }
+    .badge-no { background: #e2e8f0; color: #4a5568; }
+    .badge-due { background: #feebc8; color: #744210; }
+    .badge-overdue { background: #fed7d7; color: #742a2a; }
+    .badge-ok { background: #c6f6d5; color: #22543d; }
+    .badge-discharged { background: #e2e8f0; color: #4a5568; }
+
+    .filters {
+      display: flex; gap: 0.55rem; flex-wrap: wrap;
+      align-items: center; margin-bottom: 0.6rem;
+    }
+    .filters select, .filters input {
+      padding: 0.32rem 0.45rem; font-size: 0.8rem; width: auto;
+    }
+    .filter-btns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+    .filter-btn {
+      background: #edf2f7; color: #2d3748; border: 1px solid #cbd5e0;
+      padding: 0.28rem 0.55rem; font-size: 0.75rem; border-radius: 999px;
+    }
+    .filter-btn:hover { background: #e2e8f0; }
+    .filter-btn.is-on {
+      background: var(--primary-mid); color: #fff; border-color: var(--primary-mid);
+    }
+    .alpha-filters {
+      display: flex; flex-wrap: wrap; gap: 0.25rem;
+      margin: 0 0 0.55rem 0; padding: 0.4rem 0.15rem 0.15rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .alpha-btn {
+      min-width: 1.7rem; height: 1.7rem; padding: 0 0.3rem;
+      font-size: 0.72rem; font-weight: 600;
+      border-radius: 4px; border: 1px solid #cbd5e0;
+      background: #edf2f7; color: #2d3748;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .alpha-btn:hover { background: #e2e8f0; }
+    .alpha-btn.is-on {
+      background: var(--primary-mid); color: #fff; border-color: var(--primary-mid);
+    }
+    .alpha-btn.alpha-wide { min-width: auto; padding: 0 0.45rem; font-weight: 500; }
+
+    .case-combo { position: relative; flex: 1 1 160px; min-width: 140px; }
+    .case-combo input { width: 100%; }
+    .case-combo-list {
+      display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 50;
+      max-height: 180px; overflow-y: auto; background: #fff;
+      border: 1px solid var(--border); border-radius: 5px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12); margin-top: 2px;
+    }
+    .case-combo-list.show { display: block; }
+    .case-combo-list div {
+      padding: 0.4rem 0.55rem; font-size: 0.8rem; cursor: pointer;
+    }
+    .case-combo-list div:hover, .case-combo-list div.hl { background: #ebf2f9; }
+
+    .alert-box {
+      background: #fffaf0; border: 1px solid #fbd38d; border-radius: 6px;
+      padding: 0.65rem 0.85rem; margin-bottom: 0.9rem;
+      font-size: 0.82rem; color: #744210;
+    }
+    .alert-box strong { color: #975a16; }
+    .alert-box ul { margin: 0.25rem 0 0 1.05rem; }
+
+    .config-banner {
+      background: var(--primary-light); border: 1px solid #bee3f8;
+      border-radius: 6px; padding: 0.6rem 0.85rem; margin-bottom: 0.9rem;
+      font-size: 0.82rem; color: var(--primary-mid);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 0.7rem; flex-wrap: wrap;
+    }
+    .config-banner.hidden { display: none; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(26, 54, 93, 0.45); z-index: 100;
+      align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 10px; max-width: 420px; width: 100%;
+      padding: 1.25rem; box-shadow: 0 20px 40px rgb(26 54 93 / 0.2);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal h3 { margin-bottom: 0.55rem; font-size: 1rem; color: var(--primary); }
+    .modal p { color: var(--muted); margin-bottom: 0.85rem; font-size: 0.88rem; }
+    .modal .btn-row {
+      display: flex; gap: 0.45rem; justify-content: flex-end;
+      flex-wrap: wrap; margin-top: 0.7rem;
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+    .form-grid .form-group { display: flex; flex-direction: column; gap: 0.22rem; }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+    .danger-hint { font-size: 0.75rem; color: var(--danger); margin-top: 0.25rem; }
+
+    .toast {
+      position: fixed; bottom: 1.2rem; right: 1.2rem;
+      background: var(--primary); color: #fff;
+      padding: 0.6rem 1rem; border-radius: 6px; font-size: 0.85rem;
+      z-index: 200; opacity: 0; transform: translateY(10px);
+      transition: all 0.25s; pointer-events: none; max-width: 320px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      html, body {
+        background: #fff !important;
+        color: #000 !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      header {
+        background: #0a2a40 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        box-shadow: none !important;
+      }
+      .container { max-width: 100%; padding: 0; }
+      .config-banner,
+      .filters,
+      .form-card,
+      .modal-overlay,
+      .toast,
+      .sync-status,
+      .header-actions,
+      .no-print { display: none !important; }
+      .card-header {
+        background: #edf2f7 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .stats-bar { break-inside: avoid; page-break-inside: avoid; }
+      .list-card, .review-schedule {
+        break-inside: avoid; page-break-inside: avoid;
+        box-shadow: none !important; border: 1px solid #ccc;
+      }
+      .charts {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 8px !important;
+        margin: 8px 0 16px 0 !important;
+        padding-bottom: 8px !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        page-break-after: auto;
+        overflow: visible !important;
+      }
+      .chart-wrap {
+        height: 320px !important;
+        min-height: 320px !important;
+        max-height: none !important;
+        padding: 8px 6px 12px 6px !important;
+        overflow: visible !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .chart-wrap h3 {
+        font-size: 10pt !important;
+        margin-bottom: 4px !important;
+        flex-shrink: 0 !important;
+      }
+      .chart-canvas-box {
+        flex: 1 1 auto !important;
+        min-height: 260px !important;
+        height: 260px !important;
+        overflow: visible !important;
+        position: relative !important;
+      }
+      .chart-canvas-box canvas {
+        max-height: 100% !important;
+      }
+      .gt-section {
+        margin-top: 12px !important;
+        page-break-before: auto;
+        break-inside: avoid;
+      }
+      table { font-size: 9pt; }
+      th, td { padding: 0.3rem 0.35rem; }
+      .month-card { break-inside: avoid; page-break-inside: avoid; }
+      a { text-decoration: none; color: inherit; }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body class="view-pt">
+  <header>
+    <div class="header-row">
+      <div>
+        <h1>物理治療個案資料庫 Physio Case Database</h1>
+        <p>最高服務量 72 人 · 每年 ICP 覆核 · 覆核期限前一個月必須完成</p>
+      </div>
+      <div class="header-actions">
+        <div class="sync-status" id="syncStatus">
+          <span class="sync-dot local" id="syncDot"></span>
+          <span id="syncLabel">本機模式</span>
+        </div>
+        <button type="button" class="btn-header" onclick="openConfig()">Token 設定</button>
+        <button type="button" class="btn-header" onclick="printPage()">列印</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="config-banner" id="configBanner">
+      <span>尚未設定 GitHub Token。資料只存在此瀏覽器。設定後可多人同步。</span>
+      <button type="button" class="btn-primary btn-sm" onclick="openConfig()">設定 Token</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="num" id="statActive">0</div>
+        <div class="label">在籍個案 / 72</div>
+        <div class="caseload-bar"><div class="caseload-fill" id="caseloadFill" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card success">
+        <div class="num" id="statOk">0</div>
+        <div class="label">覆核正常</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="num" id="statDue">0</div>
+        <div class="label">一個月內須覆核</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="num" id="statOverdue">0</div>
+        <div class="label">已過期未覆核</div>
+      </div>
+    </div>
+
+    <div id="alertBox" class="alert-box" style="display:none;"></div>
+
+    <div class="form-card no-print">
+      <div class="card-header">
+        <span id="formTitle">新增個案</span>
+        <button type="button" class="btn-secondary btn-sm" id="btnCancelEdit" style="display:none;" onclick="cancelEdit()">取消編輯</button>
+      </div>
+      <div class="card-body">
+        <form id="caseForm" autocomplete="off">
+          <input type="hidden" id="editId" />
+          <div class="form-inline">
+            <div class="form-group name">
+              <label for="caseName">個案姓名 *</label>
+              <input type="text" id="caseName" required placeholder="例如：陳大文" autocomplete="off" />
+            </div>
+            <div class="form-group date">
+              <label for="admissionDate">入會日期 *</label>
+              <input type="date" id="admissionDate" required />
+            </div>
+            <div class="form-group date">
+              <label for="icpDate">ICP Date *</label>
+              <input type="date" id="icpDate" required />
+            </div>
+            <div class="form-group select">
+              <label for="cognitive">Cognitive Level *</label>
+              <select id="cognitive" required>
+                <option value="Normal">Normal</option>
+                <option value="MCI">MCI</option>
+                <option value="Major NCD">Major NCD</option>
+                <option value="Dementia">Dementia</option>
+              </select>
+            </div>
+            <div class="form-group select">
+              <label for="ptTraining">PT Training *</label>
+              <select id="ptTraining" required>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="form-group select">
+              <label for="assistiveDevice">使用輔助器材 *</label>
+              <select id="assistiveDevice" required>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="form-group date" id="dischargeMonthGroup" style="display:none;">
+              <label for="dischargeMonth">退會年月</label>
+              <input type="month" id="dischargeMonth" />
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="btnSubmit">儲存</button>
+              <button type="button" class="btn-secondary" onclick="resetForm()">清空</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="list-card">
+      <div class="card-header">
+        <span>個案列表 <span id="listCount" style="font-weight:400;color:#5a6a7a;font-size:0.8rem;"></span></span>
+        <div class="no-print" style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
+          <button type="button" class="btn-secondary btn-sm" onclick="manualRefresh()">重新同步</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="exportCSV()">匯出 CSV</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">匯入 CSV</button>
+          <input type="file" id="importFile" accept=".csv" style="display:none;" onchange="importCSV(event)" />
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="filters no-print">
+          <div class="filter-btns" id="filterStatusBtns">
+            <button type="button" class="filter-btn is-on" data-filter="all" title="只顯示在籍個案">全部（在籍）</button>
+            <button type="button" class="filter-btn" data-filter="due">須覆核/過期</button>
+            <button type="button" class="filter-btn" data-filter="discharged">已退會</button>
+          </div>
+          <select id="filterCognitive">
+            <option value="" selected>全部認知水平</option>
+            <option value="Normal">Normal</option>
+            <option value="MCI">MCI</option>
+            <option value="Major NCD">Major NCD</option>
+            <option value="Dementia">Dementia</option>
+          </select>
+          <input type="text" id="searchName" name="caseListSearch" placeholder="搜尋姓名…" style="min-width:120px;"
+                 autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                 value="" data-lpignore="true" data-form-type="other" />
+          <span id="tableDebug" style="font-size:0.72rem;color:#5a6a7a;margin-left:0.25rem;"></span>
+        </div>
+        <div class="alpha-filters no-print" id="alphaFilters" title="按姓名首字母篩選"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>姓名</th>
+                <th>入會日期</th>
+                <th>ICP Date</th>
+                <th>下次覆核期限</th>
+                <th>覆核狀態</th>
+                <th>退會年月</th>
+                <th>認知</th>
+                <th>PT</th>
+                <th>輔助器材</th>
+                <th class="no-print">操作</th>
+              </tr>
+            </thead>
+            <tbody id="caseTableBody"></tbody>
+          </table>
+          <div id="emptyMsg" class="empty" style="display:none;">暫無個案資料</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-wrap">
+        <h3>Cognitive Level</h3>
+        <div class="chart-canvas-box"><canvas id="chartCognitive"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <h3>PT Training</h3>
+        <div class="chart-canvas-box"><canvas id="chartPT"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <h3>使用輔助器材</h3>
+        <div class="chart-canvas-box"><canvas id="chartDevice"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Assistive devices & bookings -->
+    <div class="list-card gt-section">
+      <div class="card-header">
+        <span>輔助器材預約（每件僅一套 · 不可重疊）</span>
+      </div>
+      <div class="card-body">
+        <div class="gt-grid">
+          <div class="gt-panel">
+            <div class="gt-panel-title">
+              <span>器材清單</span>
+              <span id="deviceCount" style="font-size:0.72rem;font-weight:400;color:#5a6a7a;"></span>
+            </div>
+            <div class="gt-panel-body">
+              <form id="deviceForm" autocomplete="off" onsubmit="return false;">
+                <input type="hidden" id="deviceEditId" />
+                <div class="gt-form-row">
+                  <div class="form-group fg-name">
+                    <label for="deviceName">器材名稱 *</label>
+                    <input type="text" id="deviceName" placeholder="例如：踏步機 / 平衡板" required />
+                  </div>
+                  <div class="form-group fg-note">
+                    <label for="deviceNote">備註</label>
+                    <input type="text" id="deviceNote" placeholder="選填" />
+                  </div>
+                  <div class="form-group" style="flex:0 0 auto;">
+                    <label>&nbsp;</label>
+                    <div style="display:flex;gap:0.3rem;">
+                      <button type="button" class="btn-primary btn-sm" id="btnSaveDevice">新增</button>
+                      <button type="button" class="btn-secondary btn-sm" id="btnCancelDevice" style="display:none;">取消</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+              <ul class="gt-list" id="deviceList"></ul>
+              <div id="deviceEmpty" class="empty" style="display:none;padding:0.8rem;">尚未新增器材</div>
+            </div>
+          </div>
+
+          <div class="gt-panel">
+            <div class="gt-panel-title">
+              <span>使用預約</span>
+              <span id="bookingCount" style="font-size:0.72rem;font-weight:400;color:#5a6a7a;"></span>
+            </div>
+            <div class="gt-panel-body">
+              <div class="gt-conflict" id="bookingConflict"></div>
+              <form id="bookingForm" autocomplete="off" onsubmit="return false;">
+                <input type="hidden" id="bookingEditId" />
+                <div class="gt-form-row">
+                  <div class="form-group fg-select">
+                    <label for="bookingDevice">器材 *</label>
+                    <select id="bookingDevice" required></select>
+                  </div>
+                  <div class="form-group case-combo" style="flex:1 1 160px;">
+                    <label for="bookingCaseSearch">個案 *</label>
+                    <input type="text" id="bookingCaseSearch" placeholder="搜尋姓名…" autocomplete="off" />
+                    <input type="hidden" id="bookingCase" />
+                    <div class="case-combo-list" id="bookingCaseList"></div>
+                  </div>
+                  <div class="form-group fg-select">
+                    <label for="bookingWeekday">星期 *</label>
+                    <select id="bookingWeekday" required>
+                      <option value="">— 選擇 —</option>
+                      <option value="1">星期一</option>
+                      <option value="2">星期二</option>
+                      <option value="3">星期三</option>
+                      <option value="4">星期四</option>
+                      <option value="5">星期五</option>
+                      <option value="6">星期六</option>
+                    </select>
+                  </div>
+                  <div class="form-group fg-time">
+                    <label for="bookingStart">開始 *</label>
+                    <input type="time" id="bookingStart" required />
+                  </div>
+                  <div class="form-group fg-time">
+                    <label for="bookingEnd">結束 *</label>
+                    <input type="time" id="bookingEnd" required />
+                  </div>
+                  <div class="form-group fg-note">
+                    <label for="bookingNote">備註</label>
+                    <input type="text" id="bookingNote" placeholder="選填" />
+                  </div>
+                  <div class="form-group" style="flex:0 0 auto;">
+                    <label>&nbsp;</label>
+                    <div style="display:flex;gap:0.3rem;">
+                      <button type="button" class="btn-primary btn-sm" id="btnSaveBooking">預約</button>
+                      <button type="button" class="btn-secondary btn-sm" id="btnCancelBooking" style="display:none;">取消</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+              <div class="filters" style="margin-bottom:0.4rem;">
+                <select id="bookingFilterWeekday">
+                  <option value="">全部星期</option>
+                  <option value="1">星期一</option>
+                  <option value="2">星期二</option>
+                  <option value="3">星期三</option>
+                  <option value="4">星期四</option>
+                  <option value="5">星期五</option>
+                  <option value="6">星期六</option>
+                </select>
+                <button type="button" class="btn-secondary btn-sm" id="btnClearBookingFilter">顯示全部</button>
+              </div>
+              <ul class="gt-list" id="bookingList"></ul>
+              <div id="bookingEmpty" class="empty" style="display:none;padding:0.8rem;">暫無預約紀錄</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="review-schedule">
+      <div class="card-header">
+        <span>覆核時間表（按下次覆核期限月份分組）</span>
+        <div class="schedule-legend">
+          <span><i class="legend-dot" style="background:#feb2b2;"></i> 已過期</span>
+          <span><i class="legend-dot" style="background:#fbd38d;"></i> 一個月內須覆核</span>
+          <span><i class="legend-dot" style="background:#90cdf4;"></i> 本月期限</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="reviewByMonth" class="month-grid"></div>
+        <div id="reviewByMonthEmpty" class="schedule-empty" style="display:none;">暫無在籍個案的覆核安排</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h3 id="modalTitle">確認</h3>
+      <p id="modalMsg"></p>
+      <div class="btn-row">
+        <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+        <button type="button" class="btn-primary" id="modalConfirm">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="reviewModal">
+    <div class="modal wide">
+      <h3 id="reviewModalTitle">ICP 覆核及評估</h3>
+      <p id="reviewModalHint" style="font-size:0.82rem;color:var(--muted);margin-bottom:0.6rem;"></p>
+      <form class="review-form" id="reviewForm" autocomplete="off" onsubmit="return false;">
+        <input type="hidden" id="reviewCaseId" />
+        <input type="hidden" id="reviewAssessId" />
+        <div class="form-group">
+          <label for="reviewDate">完成 ICP 評估日期 *</label>
+          <input type="date" id="reviewDate" required />
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:0.2rem;">寫入評估紀錄。只有當此日期 ≥ 現時 ICP Date 時才會更新最新 ICP Date；補登過往分數不會改動現時 ICP Date。</div>
+        </div>
+        <div class="row2">
+          <div class="form-group">
+            <label for="reviewCogTool">評估工具 *</label>
+            <select id="reviewCogTool" required>
+              <option value="Berg Balance Scale">Berg Balance Scale</option>
+              <option value="TUG">TUG (Timed Up and Go)</option>
+              <option value="6MWT">6MWT (6-Minute Walk Test)</option>
+              <option value="Tinetti">Tinetti</option>
+              <option value="Timed Chair Stand">Timed Chair Stand</option>
+              <option value="N/A">N/A（今次無此項評估）</option>
+              <option value="other">other（自訂名稱）</option>
+            </select>
+          </div>
+          <div class="form-group" id="reviewOtherToolGroup" style="display:none;">
+            <label for="reviewOtherTool">自訂工具名稱 *</label>
+            <input type="text" id="reviewOtherTool" placeholder="輸入工具名稱" />
+          </div>
+        </div>
+        <div class="row2">
+          <div class="form-group" id="reviewCogScoreGroup">
+            <label for="reviewCogScore">主要分數（選填）</label>
+            <input type="number" id="reviewCogScore" step="any" placeholder="無則留空" />
+          </div>
+          <div class="form-group">
+            <label for="reviewMbi">功能／活動分數（選填）</label>
+            <input type="number" id="reviewMbi" step="any" placeholder="無則留空" />
+          </div>
+        </div>
+        <div class="row2">
+          <div class="form-group">
+            <label for="reviewLawton">平衡／步態分數（選填）</label>
+            <input type="number" id="reviewLawton" step="any" placeholder="無則留空" />
+          </div>
+          <div class="form-group">
+            <label for="reviewNotes">備註</label>
+            <input type="text" id="reviewNotes" placeholder="選填" />
+          </div>
+        </div>
+        <p style="font-size:0.75rem;color:var(--muted);margin:0.2rem 0 0.5rem;">各項分數均可留空。過往紀錄可於個案列展開後編輯或刪除。</p>
+      </form>
+      <div class="btn-row">
+        <button type="button" class="btn-secondary" onclick="closeReviewModal()">取消</button>
+        <button type="button" class="btn-primary" id="btnSaveReview">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="configModal">
+    <div class="modal">
+      <h3>GitHub Token 設定</h3>
+      <p>只需填入 Personal Access Token。其餘連線資料已固定，無需更改。</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Personal Access Token *</label>
+          <input type="password" id="cfgToken" placeholder="github_pat_… 或 ghp_…" autocomplete="off" />
+          <div class="hint">Fine-grained：Contents Read &amp; Write（限本 repo）。經典 token：勾選 repo。</div>
+          <div class="danger-hint">⚠ Token 只存在此瀏覽器，請勿分享此電腦。</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn-secondary" onclick="closeConfig()">取消</button>
+        <button type="button" class="btn-danger btn-sm" onclick="clearConfig()">清除 Token</button>
+        <button type="button" class="btn-primary" onclick="saveConfig()">儲存並連接</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============================================================
+    //  FIXED GitHub settings — edit these once to match your repo
+    //  Physio colleague: create a NEW private/public repo under the
+    //  same account (e.g. WIHC-Physio-ICP), then put this HTML +
+    //  data.json in it (or use GitHub Pages).
+    // ============================================================
+    const GH_OWNER  = 'naacwihcfrailcaseot';
+    const GH_REPO   = 'WIHC-Physio-ICP';
+    const GH_BRANCH = 'main';
+    const GH_PATH   = 'data.json';
+    // ============================================================
+
+    const MAX_CASELOAD = 72;
+    const LOCAL_KEY = 'pt_case_db_v1';
+    const TOKEN_KEY = 'pt_case_db_gh_token';
+
+    let cases = [];
+    let devices = [];
+    let bookings = [];
+    let charts = { cognitive: null, pt: null, device: null };
+    let detailCharts = {};
+    let expandedCaseId = null;
+    let pendingAction = null;
+    let fileSha = null;
+    let saving = false;
+    let pullInFlight = false;
+
+    const COLORS = {
+      cognitive: ['#2C7A7B', '#D69E2E', '#DD6B20', '#C53030'],
+      binary: ['#1A5F8A', '#A0AEC0'],
+      device: ['#2B6CB0', '#A0AEC0'],
+      line: ['#1A5F8A', '#2B6CB0', '#C05621', '#2C7A7B', '#805AD5', '#C53030']
+    };
+
+    var COG_TOOLS = ['Berg Balance Scale', 'TUG', '6MWT', 'Tinetti', 'Timed Chair Stand', 'N/A', 'other'];
+
+    function getToken() { return (localStorage.getItem(TOKEN_KEY) || '').trim(); }
+    function setToken(t) {
+      if (t) localStorage.setItem(TOKEN_KEY, t);
+      else localStorage.removeItem(TOKEN_KEY);
+    }
+
+    function openConfig() {
+      document.getElementById('cfgToken').value = getToken();
+      document.getElementById('configModal').classList.add('show');
+    }
+    function closeConfig() { document.getElementById('configModal').classList.remove('show'); }
+    function clearConfig() {
+      setToken('');
+      fileSha = null;
+      updateSyncUI('local', '本機模式');
+      document.getElementById('configBanner').classList.remove('hidden');
+      closeConfig();
+      toast('已清除 Token，改回本機儲存');
+    }
+    async function saveConfig() {
+      const token = document.getElementById('cfgToken').value.trim();
+      if (!token) { toast('請填入 Token'); return; }
+      if (GH_OWNER === 'YOUR_GITHUB_USERNAME') {
+        toast('請先在 HTML 內設定 GH_OWNER（你的 GitHub 用戶名）');
+        return;
+      }
+      setToken(token);
+      closeConfig();
+      toast('Token 已儲存，正在連接…');
+      await pullFromGitHub();
+    }
+
+    function updateSyncUI(state, label) {
+      document.getElementById('syncDot').className = 'sync-dot ' + state;
+      document.getElementById('syncLabel').textContent = label;
+      const banner = document.getElementById('configBanner');
+      if (state === 'local') banner.classList.remove('hidden');
+      else banner.classList.add('hidden');
+    }
+
+    function ghHeaders(token, extra) {
+      return Object.assign({
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer ' + token,
+        'X-GitHub-Api-Version': '2022-11-28'
+      }, extra || {});
+    }
+    function encodeBase64Utf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+    function decodeBase64Utf8(str) { return decodeURIComponent(escape(atob(str))); }
+
+    function normalizeCases(arr) {
+      if (!Array.isArray(arr)) return [];
+      return arr.map(function (c) {
+        if (!c || typeof c !== 'object') return null;
+        var status = c.status === 'discharged' ? 'discharged' : 'active';
+        var dMonth = c.dischargedMonth || '';
+        if (!dMonth && c.dischargedAt) dMonth = String(c.dischargedAt).slice(0, 7);
+        if (status !== 'discharged') dMonth = '';
+        // Support both new field names and legacy OT field names for easy migration
+        var pt = c.ptTraining;
+        if (pt !== 'Yes' && pt !== 'No') pt = (c.otTraining === 'Yes') ? 'Yes' : 'No';
+        var device = c.assistiveDevice;
+        if (device !== 'Yes' && device !== 'No') device = (c.gerontech === 'Yes') ? 'Yes' : 'No';
+        return {
+          id: c.id || uid(),
+          name: String(c.name || '').trim(),
+          admissionDate: c.admissionDate || '',
+          icpDate: c.icpDate || c.admissionDate || '',
+          cognitive: c.cognitive || 'Normal',
+          ptTraining: pt,
+          assistiveDevice: device,
+          status: status,
+          dischargedAt: c.dischargedAt || null,
+          dischargedMonth: dMonth || null,
+          assessmentHistory: normalizeAssessments(c.assessmentHistory),
+          createdAt: c.createdAt || new Date().toISOString(),
+          updatedAt: c.updatedAt || new Date().toISOString()
+        };
+      }).filter(function (c) { return c && c.name; });
+    }
+
+    function isActive(c) { return c && c.status !== 'discharged'; }
+
+    function normalizeAssessments(arr) {
+      if (!Array.isArray(arr)) return [];
+      return arr.map(function (a) {
+        if (!a || typeof a !== 'object') return null;
+        var tool = String(a.cognitiveTool || a.tool || '').trim();
+        if (!tool) tool = 'N/A';
+        var score = a.cognitiveScore;
+        var scoreVal = null;
+        if (tool !== 'N/A' && score !== undefined && score !== null && score !== '') {
+          scoreVal = Number(score);
+        }
+        var mbiVal = null;
+        if (a.mbiScore !== undefined && a.mbiScore !== null && a.mbiScore !== '') {
+          mbiVal = Number(a.mbiScore);
+        }
+        var lawtonVal = null;
+        if (a.lawtonScore !== undefined && a.lawtonScore !== null && a.lawtonScore !== '') {
+          lawtonVal = Number(a.lawtonScore);
+        }
+        return {
+          id: a.id || uid(),
+          date: a.date || a.assessmentDate || '',
+          previousIcpDate: a.previousIcpDate || null,
+          icpDate: a.icpDate || a.date || '',
+          cognitiveTool: tool,
+          cognitiveScore: scoreVal,
+          mbiScore: mbiVal,
+          lawtonScore: lawtonVal,
+          notes: String(a.notes || '').trim()
+        };
+      }).filter(function (a) { return a && a.date; })
+        .sort(function (a, b) {
+          if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+          return 0;
+        });
+    }
+
+    function parseOptionalNumber(v) {
+      if (v === undefined || v === null || String(v).trim() === '') return null;
+      var n = Number(v);
+      return isNaN(n) ? null : n;
+    }
+
+    function formatScoreCell(v) {
+      return (v === null || v === undefined || v === '') ? '—' : v;
+    }
+
+    function isPresetCogTool(tool) {
+      return COG_TOOLS.indexOf(tool) !== -1;
+    }
+
+    function syncOtherToolField() {
+      var sel = document.getElementById('reviewCogTool');
+      var otherGroup = document.getElementById('reviewOtherToolGroup');
+      var scoreInput = document.getElementById('reviewCogScore');
+      if (!sel) return;
+      if (otherGroup) otherGroup.style.display = (sel.value === 'other') ? '' : 'none';
+      if (scoreInput) {
+        var na = sel.value === 'N/A';
+        scoreInput.disabled = na;
+        if (na) scoreInput.value = '';
+      }
+    }
+
+    function applyDocument(doc) {
+      if (Array.isArray(doc)) {
+        cases = normalizeCases(doc);
+        devices = devices || [];
+        bookings = bookings || [];
+        return;
+      }
+      if (!doc || typeof doc !== 'object') {
+        cases = [];
+        devices = [];
+        bookings = [];
+        return;
+      }
+      cases = normalizeCases(doc.cases || []);
+      devices = normalizeDevices(doc.devices || []);
+      bookings = normalizeBookings(doc.bookings || []);
+    }
+
+    function buildDocument() {
+      return {
+        cases: cases,
+        devices: devices,
+        bookings: bookings
+      };
+    }
+
+    function normalizeDevices(arr) {
+      if (!Array.isArray(arr)) return [];
+      return arr.map(function (d) {
+        if (!d || typeof d !== 'object') return null;
+        var name = String(d.name || '').trim();
+        if (!name) return null;
+        return {
+          id: d.id || uid(),
+          name: name,
+          note: String(d.note || '').trim()
+        };
+      }).filter(Boolean);
+    }
+
+    function loadLocal() {
+      try {
+        var raw = localStorage.getItem(LOCAL_KEY);
+        applyDocument(raw ? JSON.parse(raw) : { cases: [], devices: [], bookings: [] });
+      } catch (e) {
+        cases = [];
+        devices = [];
+        bookings = [];
+      }
+    }
+
+    function saveLocal() {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(buildDocument()));
+    }
+
+    async function pullFromGitHub() {
+      var token = getToken();
+      if (!token) {
+        loadLocal();
+        updateSyncUI('local', '本機模式');
+        refreshAll();
+        return;
+      }
+      if (pullInFlight) return;
+      pullInFlight = true;
+      updateSyncUI('syncing', '同步中…');
+      try {
+        var url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH + '?ref=' + encodeURIComponent(GH_BRANCH);
+        var res = await fetch(url, { headers: ghHeaders(token) });
+
+        if (res.status === 404) {
+          fileSha = null;
+          if (!cases.length) loadLocal();
+          await pushToGitHub('初始化 data.json (Physio)');
+          updateSyncUI('ok', '已連接 GitHub');
+          refreshAll();
+          toast('已建立 data.json 並連接');
+          return;
+        }
+        if (!res.ok) {
+          var err = await res.json().catch(function () { return {}; });
+          throw new Error(err.message || ('HTTP ' + res.status));
+        }
+
+        var data = await res.json();
+        fileSha = data.sha;
+        var decoded = decodeBase64Utf8((data.content || '').replace(/\n/g, ''));
+        var parsed = JSON.parse(decoded);
+        var remoteCases = normalizeCases(Array.isArray(parsed) ? parsed : (parsed.cases || []));
+        var remoteDevices = Array.isArray(parsed) ? [] : normalizeDevices(parsed.devices || []);
+        var remoteBookings = Array.isArray(parsed) ? [] : normalizeBookings(parsed.bookings || []);
+
+        if (remoteCases.length === 0 && cases.length > 0) {
+          updateSyncUI('ok', '已連接（保留本機）');
+          refreshAll();
+          toast('GitHub 為空，已保留本機個案並上傳');
+          await pushToGitHub('同步本機資料到 GitHub');
+          return;
+        }
+
+        cases = remoteCases;
+        devices = remoteDevices;
+        bookings = remoteBookings;
+        saveLocal();
+        updateSyncUI('ok', '已同步 · ' + new Date().toLocaleTimeString('zh-HK'));
+        refreshAll();
+        toast('已從 GitHub 載入 ' + cases.length + ' 筆個案');
+      } catch (e) {
+        console.error(e);
+        updateSyncUI('err', '同步失敗');
+        toast('載入失敗: ' + e.message);
+        loadLocal();
+        refreshAll();
+      } finally {
+        pullInFlight = false;
+      }
+    }
+
+    async function pushToGitHub(message) {
+      var token = getToken();
+      if (!token) {
+        saveLocal();
+        return true;
+      }
+      if (saving) return false;
+      saving = true;
+      updateSyncUI('syncing', '儲存中…');
+      try {
+        var getUrl = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH + '?ref=' + encodeURIComponent(GH_BRANCH);
+        var getRes = await fetch(getUrl, { headers: ghHeaders(token) });
+        if (getRes.ok) {
+          var meta = await getRes.json();
+          fileSha = meta.sha;
+        } else if (getRes.status === 404) {
+          fileSha = null;
+        } else {
+          throw new Error('無法取得檔案狀態');
+        }
+
+        var content = encodeBase64Utf8(JSON.stringify(buildDocument(), null, 2));
+        var body = {
+          message: message || ('更新個案 ' + new Date().toISOString()),
+          content: content,
+          branch: GH_BRANCH
+        };
+        if (fileSha) body.sha = fileSha;
+
+        var putUrl = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH;
+        var putRes = await fetch(putUrl, {
+          method: 'PUT',
+          headers: ghHeaders(token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body)
+        });
+        if (!putRes.ok) {
+          var err2 = await putRes.json().catch(function () { return {}; });
+          throw new Error(err2.message || ('HTTP ' + putRes.status));
+        }
+        var result = await putRes.json();
+        fileSha = result.content && result.content.sha;
+        saveLocal();
+        updateSyncUI('ok', '已同步 · ' + new Date().toLocaleTimeString('zh-HK'));
+        return true;
+      } catch (e) {
+        console.error(e);
+        updateSyncUI('err', '儲存失敗');
+        toast('儲存失敗: ' + e.message + '（已暫存本機）');
+        saveLocal();
+        return false;
+      } finally {
+        saving = false;
+      }
+    }
+
+    async function persist(msg) {
+      saveLocal();
+      await pushToGitHub(msg);
+    }
+
+    async function manualRefresh() {
+      loadLocal();
+      refreshAll();
+      if (getToken()) await pullFromGitHub();
+      else toast('已重新載入本機資料');
+    }
+
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+    function parseDate(s) {
+      if (!s) return null;
+      var d = new Date(s + 'T00:00:00');
+      return isNaN(d.getTime()) ? null : d;
+    }
+    function formatDate(s) {
+      if (!s) return '—';
+      var d = parseDate(s);
+      if (!d) return s;
+      return d.toLocaleDateString('zh-HK', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    }
+    function formatDischargeMonth(ym) {
+      if (!ym) return '—';
+      var s = String(ym).slice(0, 7);
+      var parts = s.split('-');
+      if (parts.length < 2) return s;
+      return parts[0] + '年' + parseInt(parts[1], 10) + '月';
+    }
+
+    function addYears(dateStr, years) {
+      var d = parseDate(dateStr);
+      if (!d) return '';
+      d.setFullYear(d.getFullYear() + years);
+      return d.toISOString().slice(0, 10);
+    }
+    function addMonths(dateStr, months) {
+      var d = parseDate(dateStr);
+      if (!d) return '';
+      d.setMonth(d.getMonth() + months);
+      return d.toISOString().slice(0, 10);
+    }
+    function nextReviewDue(icpDate) { return addYears(icpDate, 1); }
+    function getReviewStatus(c) {
+      if (!isActive(c)) return 'discharged';
+      var icp = c.icpDate;
+      if (!icp) return 'ok';
+      var due = nextReviewDue(icp);
+      var windowStart = addMonths(due, -1);
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      var dueD = parseDate(due);
+      var winD = parseDate(windowStart);
+      if (!dueD || !winD) return 'ok';
+      if (today > dueD) return 'overdue';
+      if (today >= winD) return 'due';
+      return 'ok';
+    }
+    function statusLabel(s) {
+      if (s === 'overdue') return '<span class="badge badge-overdue">已過期</span>';
+      if (s === 'due') return '<span class="badge badge-due">須覆核</span>';
+      if (s === 'discharged') return '<span class="badge badge-discharged">已退會</span>';
+      return '<span class="badge badge-ok">正常</span>';
+    }
+    function cogBadge(level) {
+      var map = { 'Normal': 'badge-normal', 'MCI': 'badge-mci', 'Major NCD': 'badge-major', 'Dementia': 'badge-dementia' };
+      return '<span class="badge ' + (map[level] || '') + '">' + (level || '—') + '</span>';
+    }
+    function ynBadge(v) {
+      return v === 'Yes' ? '<span class="badge badge-yes">Yes</span>' : '<span class="badge badge-no">No</span>';
+    }
+    function toast(msg) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function () { el.classList.remove('show'); }, 3000);
+    }
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function resetForm() {
+      document.getElementById('caseForm').reset();
+      document.getElementById('editId').value = '';
+      document.getElementById('formTitle').textContent = '新增個案';
+      document.getElementById('btnSubmit').textContent = '儲存';
+      document.getElementById('btnCancelEdit').style.display = 'none';
+      var discGroup = document.getElementById('dischargeMonthGroup');
+      var discInput = document.getElementById('dischargeMonth');
+      if (discGroup) discGroup.style.display = 'none';
+      if (discInput) discInput.value = '';
+    }
+    function cancelEdit() { resetForm(); }
+
+    document.getElementById('admissionDate').addEventListener('change', function () {
+      if (!document.getElementById('editId').value) {
+        document.getElementById('icpDate').value = this.value;
+      }
+    });
+
+    document.getElementById('caseForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('editId').value;
+      var name = document.getElementById('caseName').value.trim();
+      var admissionDate = document.getElementById('admissionDate').value;
+      var icpDate = document.getElementById('icpDate').value;
+      var cognitive = document.getElementById('cognitive').value;
+      var ptTraining = document.getElementById('ptTraining').value;
+      var assistiveDevice = document.getElementById('assistiveDevice').value;
+      if (!name || !admissionDate || !icpDate) {
+        toast('請填寫所有必填欄位');
+        return;
+      }
+      if (editId) {
+        var idx = cases.findIndex(function (c) { return c.id === editId; });
+        if (idx === -1) return;
+        var isDisc = cases[idx].status === 'discharged';
+        var dMonth = document.getElementById('dischargeMonth').value || '';
+        if (isDisc && !dMonth) {
+          toast('退會個案請填寫退會年月');
+          return;
+        }
+        cases[idx] = Object.assign({}, cases[idx], {
+          name: name, admissionDate: admissionDate, icpDate: icpDate,
+          cognitive: cognitive, ptTraining: ptTraining, assistiveDevice: assistiveDevice,
+          status: isDisc ? 'discharged' : 'active',
+          dischargedMonth: isDisc ? dMonth : null,
+          dischargedAt: isDisc ? (dMonth + '-01') : null,
+          updatedAt: new Date().toISOString()
+        });
+        await persist('更新個案: ' + name);
+        toast('個案已更新');
+      } else {
+        if (cases.filter(isActive).length >= MAX_CASELOAD) {
+          toast('已達最高服務量 72 人');
+          return;
+        }
+        cases.push({
+          id: uid(), name: name, admissionDate: admissionDate, icpDate: icpDate,
+          cognitive: cognitive, ptTraining: ptTraining, assistiveDevice: assistiveDevice,
+          status: 'active',
+          assessmentHistory: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        await persist('新增個案: ' + name);
+        toast('個案已新增');
+      }
+      resetForm();
+      refreshAll();
+    });
+
+    function editCase(id) {
+      var c = cases.find(function (x) { return x.id === id; });
+      if (!c) return;
+      document.getElementById('editId').value = c.id;
+      document.getElementById('caseName').value = c.name;
+      document.getElementById('admissionDate').value = c.admissionDate;
+      document.getElementById('icpDate').value = c.icpDate;
+      document.getElementById('cognitive').value = c.cognitive;
+      document.getElementById('ptTraining').value = c.ptTraining;
+      document.getElementById('assistiveDevice').value = c.assistiveDevice;
+      var discGroup = document.getElementById('dischargeMonthGroup');
+      var discInput = document.getElementById('dischargeMonth');
+      if (c.status === 'discharged') {
+        discGroup.style.display = '';
+        discInput.value = c.dischargedMonth || (c.dischargedAt ? String(c.dischargedAt).slice(0, 7) : '');
+      } else {
+        discGroup.style.display = 'none';
+        discInput.value = '';
+      }
+      document.getElementById('formTitle').textContent = '編輯個案';
+      document.getElementById('btnSubmit').textContent = '更新';
+      document.getElementById('btnCancelEdit').style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function askReview(id) {
+      openAssessmentModal(id, null);
+    }
+
+    function openAssessmentModal(caseId, assessId) {
+      var c = cases.find(function (x) { return x.id === caseId; });
+      if (!c) return;
+      var today = new Date().toISOString().slice(0, 10);
+      document.getElementById('reviewCaseId').value = c.id;
+      document.getElementById('reviewAssessId').value = assessId || '';
+
+      if (assessId) {
+        var a = (c.assessmentHistory || []).find(function (x) { return x.id === assessId; });
+        if (!a) { toast('找不到該評估紀錄'); return; }
+        document.getElementById('reviewModalTitle').textContent = '編輯評估紀錄 — ' + c.name;
+        document.getElementById('reviewModalHint').textContent =
+          '修改此筆歷史紀錄。不會自動改動個案現時 ICP Date（目前：' + formatDate(c.icpDate) + '）。';
+        document.getElementById('reviewDate').value = a.date || today;
+        document.getElementById('reviewMbi').value = (a.mbiScore === null || a.mbiScore === undefined) ? '' : a.mbiScore;
+        document.getElementById('reviewLawton').value = (a.lawtonScore === null || a.lawtonScore === undefined) ? '' : a.lawtonScore;
+        document.getElementById('reviewNotes').value = a.notes || '';
+        if (a.cognitiveTool === 'N/A') {
+          document.getElementById('reviewCogTool').value = 'N/A';
+          document.getElementById('reviewOtherTool').value = '';
+        } else if (isPresetCogTool(a.cognitiveTool) && a.cognitiveTool !== 'other') {
+          document.getElementById('reviewCogTool').value = a.cognitiveTool;
+          document.getElementById('reviewOtherTool').value = '';
+        } else {
+          document.getElementById('reviewCogTool').value = 'other';
+          document.getElementById('reviewOtherTool').value =
+            (a.cognitiveTool === 'other') ? '' : (a.cognitiveTool || '');
+        }
+        document.getElementById('reviewCogScore').value =
+          (a.cognitiveScore === null || a.cognitiveScore === undefined) ? '' : a.cognitiveScore;
+        document.getElementById('btnSaveReview').textContent = '更新紀錄';
+      } else {
+        document.getElementById('reviewModalTitle').textContent = 'ICP 覆核及評估 — ' + c.name;
+        document.getElementById('reviewModalHint').textContent =
+          '目前 ICP Date：' + formatDate(c.icpDate) + '。若評估日期 ≥ 現時 ICP Date，會更新 ICP Date；若輸入較早的過往日期，只會新增歷史分數，不會改動最新 ICP Date。';
+        document.getElementById('reviewDate').value = today;
+        document.getElementById('reviewCogTool').value = 'Berg Balance Scale';
+        document.getElementById('reviewOtherTool').value = '';
+        document.getElementById('reviewCogScore').value = '';
+        document.getElementById('reviewMbi').value = '';
+        document.getElementById('reviewLawton').value = '';
+        document.getElementById('reviewNotes').value = '';
+        document.getElementById('btnSaveReview').textContent = '儲存覆核紀錄';
+      }
+      syncOtherToolField();
+      document.getElementById('reviewModal').classList.add('show');
+    }
+
+    function closeReviewModal() {
+      document.getElementById('reviewModal').classList.remove('show');
+    }
+
+    function resolveReviewToolName() {
+      var tool = document.getElementById('reviewCogTool').value;
+      if (tool === 'other') {
+        var custom = document.getElementById('reviewOtherTool').value.trim();
+        if (!custom) return null;
+        return custom;
+      }
+      return tool;
+    }
+
+    async function saveReviewRecord() {
+      var id = document.getElementById('reviewCaseId').value;
+      var assessId = document.getElementById('reviewAssessId').value;
+      var c = cases.find(function (x) { return x.id === id; });
+      if (!c) return;
+      var date = document.getElementById('reviewDate').value;
+      var toolName = resolveReviewToolName();
+      var cogScore = parseOptionalNumber(document.getElementById('reviewCogScore').value);
+      var mbi = parseOptionalNumber(document.getElementById('reviewMbi').value);
+      var lawton = parseOptionalNumber(document.getElementById('reviewLawton').value);
+      var notes = document.getElementById('reviewNotes').value.trim();
+      if (!date) {
+        toast('請填寫評估日期');
+        return;
+      }
+      if (!toolName) {
+        toast(document.getElementById('reviewCogTool').value === 'other'
+          ? '請輸入自訂評估工具名稱'
+          : '請選擇評估工具');
+        return;
+      }
+      if (toolName === 'N/A') cogScore = null;
+      if (!Array.isArray(c.assessmentHistory)) c.assessmentHistory = [];
+
+      if (assessId) {
+        var idx = c.assessmentHistory.findIndex(function (x) { return x.id === assessId; });
+        if (idx === -1) { toast('找不到該評估紀錄'); return; }
+        var old = c.assessmentHistory[idx];
+        c.assessmentHistory[idx] = {
+          id: old.id,
+          date: date,
+          previousIcpDate: old.previousIcpDate || null,
+          icpDate: date,
+          cognitiveTool: toolName,
+          cognitiveScore: cogScore,
+          mbiScore: mbi,
+          lawtonScore: lawton,
+          notes: notes
+        };
+        c.assessmentHistory = normalizeAssessments(c.assessmentHistory);
+        c.updatedAt = new Date().toISOString();
+        await persist('更新評估紀錄: ' + c.name);
+        closeReviewModal();
+        expandedCaseId = c.id;
+        refreshAll();
+        toast('評估紀錄已更新');
+        return;
+      }
+
+      var prevIcp = c.icpDate || '';
+      var shouldUpdateIcp = !prevIcp || date >= prevIcp;
+      c.assessmentHistory.push({
+        id: uid(),
+        date: date,
+        previousIcpDate: prevIcp || null,
+        icpDate: shouldUpdateIcp ? date : prevIcp,
+        cognitiveTool: toolName,
+        cognitiveScore: cogScore,
+        mbiScore: mbi,
+        lawtonScore: lawton,
+        notes: notes
+      });
+      c.assessmentHistory = normalizeAssessments(c.assessmentHistory);
+      if (shouldUpdateIcp) {
+        c.icpDate = date;
+      }
+      c.updatedAt = new Date().toISOString();
+      await persist(shouldUpdateIcp ? ('覆核個案: ' + c.name) : ('新增過往評估: ' + c.name));
+      closeReviewModal();
+      expandedCaseId = c.id;
+      refreshAll();
+      if (shouldUpdateIcp) {
+        toast('已儲存覆核紀錄，ICP Date 已更新為 ' + formatDate(date));
+      } else {
+        toast('已新增過往評估紀錄（ICP Date 維持 ' + formatDate(c.icpDate) + '）');
+      }
+    }
+
+    function askDelete(id) {
+      var c = cases.find(function (x) { return x.id === id; });
+      if (!c) return;
+      openModal('永久刪除', '確定永久刪除「' + c.name + '」？此操作無法復原。', async function () {
+        cases = cases.filter(function (x) { return x.id !== id; });
+        await persist('刪除個案: ' + c.name);
+        refreshAll();
+        toast('個案已刪除');
+      }, true);
+    }
+
+    function askWithdraw(id) {
+      var c = cases.find(function (x) { return x.id === id; });
+      if (!c) return;
+      if (c.status === 'discharged') {
+        toast('此個案已是退會狀態');
+        return;
+      }
+      var now = new Date();
+      var defaultYM = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      openModal('確認退會', '確定將「' + c.name + '」標記為已退會？\n退會年月先設為 ' + formatDischargeMonth(defaultYM) + '（可於編輯修改）。\n退會後不會出現在「全部（在籍）」列表。', async function () {
+        c.status = 'discharged';
+        c.dischargedMonth = defaultYM;
+        c.dischargedAt = defaultYM + '-01';
+        c.updatedAt = new Date().toISOString();
+        await persist('退會: ' + c.name);
+        refreshAll();
+        toast('「' + c.name + '」已退會（' + formatDischargeMonth(defaultYM) + '）');
+      });
+    }
+
+    function askReactivate(id) {
+      var c = cases.find(function (x) { return x.id === id; });
+      if (!c) return;
+      if (c.status !== 'discharged') return;
+      if (cases.filter(isActive).length >= MAX_CASELOAD) {
+        toast('已達最高服務量 72 人，無法重新入會');
+        return;
+      }
+      openModal('重新入會', '確定將「' + c.name + '」重新標記為在籍？', async function () {
+        c.status = 'active';
+        c.dischargedAt = null;
+        c.dischargedMonth = null;
+        c.updatedAt = new Date().toISOString();
+        await persist('重新入會: ' + c.name);
+        refreshAll();
+        toast('「' + c.name + '」已重新入會');
+      });
+    }
+
+    function openModal(title, msg, onConfirm, isDanger) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalMsg').textContent = msg;
+      document.getElementById('modalConfirm').className = isDanger ? 'btn-danger' : 'btn-primary';
+      pendingAction = onConfirm;
+      document.getElementById('modal').classList.add('show');
+    }
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+      pendingAction = null;
+    }
+    document.getElementById('modalConfirm').addEventListener('click', async function () {
+      if (pendingAction) await pendingAction();
+      closeModal();
+    });
+
+    function refreshAll() {
+      renderStats();
+      renderAlerts();
+      renderTable();
+      renderCharts();
+      renderReviewByMonth();
+      renderGerontech();
+    }
+
+    function renderStats() {
+      var active = cases.filter(isActive);
+      var ok = 0, due = 0, overdue = 0;
+      active.forEach(function (c) {
+        var s = getReviewStatus(c);
+        if (s === 'ok') ok++;
+        else if (s === 'due') due++;
+        else if (s === 'overdue') overdue++;
+      });
+      document.getElementById('statActive').textContent = active.length;
+      document.getElementById('statOk').textContent = ok;
+      document.getElementById('statDue').textContent = due;
+      document.getElementById('statOverdue').textContent = overdue;
+      var pct = Math.min(100, (active.length / MAX_CASELOAD) * 100);
+      var fill = document.getElementById('caseloadFill');
+      fill.style.width = pct + '%';
+      fill.className = 'caseload-fill' + (pct >= 100 ? ' full' : pct >= 85 ? ' near' : '');
+    }
+
+    function sortByReviewDueAsc(list) {
+      return list.slice().sort(function (a, b) {
+        var da = a.icpDate ? (nextReviewDue(a.icpDate) || '') : '';
+        var db = b.icpDate ? (nextReviewDue(b.icpDate) || '') : '';
+        if (da !== db) return da < db ? -1 : 1;
+        return (a.name || '').localeCompare(b.name || '', 'zh-HK');
+      });
+    }
+
+    function renderAlerts() {
+      var active = cases.filter(isActive);
+      var dueList = [], overdueList = [];
+      active.forEach(function (c) {
+        var s = getReviewStatus(c);
+        if (s === 'due') dueList.push(c);
+        if (s === 'overdue') overdueList.push(c);
+      });
+      overdueList = sortByReviewDueAsc(overdueList);
+      dueList = sortByReviewDueAsc(dueList);
+      var box = document.getElementById('alertBox');
+      if (!dueList.length && !overdueList.length) { box.style.display = 'none'; return; }
+      var html = '';
+      if (overdueList.length) {
+        html += '<strong>⚠ 已過期未覆核（' + overdueList.length + '）</strong><ul>';
+        overdueList.forEach(function (c) {
+          html += '<li>' + escapeHtml(c.name) + ' — 期限：' + formatDate(nextReviewDue(c.icpDate)) + '</li>';
+        });
+        html += '</ul>';
+      }
+      if (dueList.length) {
+        html += '<strong style="display:block;margin-top:0.35rem;">📋 一個月內須覆核（' + dueList.length + '）</strong><ul>';
+        dueList.forEach(function (c) {
+          html += '<li>' + escapeHtml(c.name) + ' — 期限：' + formatDate(nextReviewDue(c.icpDate)) + '</li>';
+        });
+        html += '</ul>';
+      }
+      box.innerHTML = html;
+      box.style.display = 'block';
+    }
+
+    var currentStatusFilter = 'all';
+    var currentLetterFilter = '';
+
+    function isJunkSearch(v) {
+      if (!v) return false;
+      var s = String(v).trim().toLowerCase();
+      if (!s) return false;
+      var junk = ['wihc-physio', 'wihc_physio', 'wihc', 'case-database', 'case_database',
+        'github', 'naacwihcfrailcaseot', 'index.html', 'localhost', 'physio'];
+      for (var i = 0; i < junk.length; i++) {
+        if (s === junk[i] || s.indexOf(junk[i]) !== -1) return true;
+      }
+      if (/^[a-z0-9_-]+\/(main|master)/i.test(s)) return true;
+      return false;
+    }
+
+    function clearCaseSearchBox() {
+      var sn = document.getElementById('searchName');
+      if (sn && isJunkSearch(sn.value)) sn.value = '';
+    }
+
+    function setStatusFilter(f) {
+      currentStatusFilter = f || 'all';
+      var btns = document.querySelectorAll('#filterStatusBtns .filter-btn');
+      for (var i = 0; i < btns.length; i++) {
+        var on = btns[i].getAttribute('data-filter') === currentStatusFilter;
+        if (on) btns[i].classList.add('is-on');
+        else btns[i].classList.remove('is-on');
+      }
+      renderTable();
+    }
+
+    function nameFirstLetter(name) {
+      var s = String(name || '').trim();
+      if (!s) return '';
+      var ch = s.charAt(0).toUpperCase();
+      if (ch >= 'A' && ch <= 'Z') return ch;
+      return 'OTHER';
+    }
+
+    function setLetterFilter(letter) {
+      currentLetterFilter = letter || '';
+      var box = document.getElementById('alphaFilters');
+      if (box) {
+        var btns = box.querySelectorAll('.alpha-btn');
+        for (var i = 0; i < btns.length; i++) {
+          var v = btns[i].getAttribute('data-letter') || '';
+          if (v === currentLetterFilter) btns[i].classList.add('is-on');
+          else btns[i].classList.remove('is-on');
+        }
+      }
+      renderTable();
+    }
+
+    function buildAlphaFilters() {
+      var box = document.getElementById('alphaFilters');
+      if (!box) return;
+      var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      var html = '<button type="button" class="alpha-btn alpha-wide is-on" data-letter="">全部字母</button>';
+      for (var i = 0; i < letters.length; i++) {
+        html += '<button type="button" class="alpha-btn" data-letter="' + letters[i] + '">' + letters[i] + '</button>';
+      }
+      html += '<button type="button" class="alpha-btn alpha-wide" data-letter="OTHER" title="中文或其他非英文字首">其他</button>';
+      box.innerHTML = html;
+    }
+
+    function renderTable() {
+      try {
+        var cogFilter = '';
+        var search = '';
+        try {
+          var fc = document.getElementById('filterCognitive');
+          var sn = document.getElementById('searchName');
+          if (fc && fc.value) cogFilter = fc.value;
+          if (sn) {
+            var rawSearch = (sn.value || '').trim();
+            if (isJunkSearch(rawSearch)) {
+              sn.value = '';
+              rawSearch = '';
+            }
+            search = rawSearch.toLowerCase();
+          }
+        } catch (e1) {}
+
+        var source = Array.isArray(cases) ? cases : [];
+        for (var ri = 0; ri < source.length; ri++) {
+          if (source[ri] && !source[ri].id) source[ri].id = uid();
+          if (source[ri] && source[ri].status !== 'discharged') source[ri].status = 'active';
+        }
+
+        var statusFilter = currentStatusFilter || 'all';
+        var list = source.slice();
+        var totalAll = list.length;
+        var totalActive = 0;
+        for (var ai = 0; ai < list.length; ai++) {
+          if (isActive(list[ai])) totalActive++;
+        }
+
+        if (statusFilter === 'discharged') {
+          list = list.filter(function (c) { return c && c.status === 'discharged'; });
+        } else if (statusFilter === 'due') {
+          list = list.filter(function (c) {
+            return isActive(c) && (getReviewStatus(c) === 'due' || getReviewStatus(c) === 'overdue');
+          });
+        } else {
+          list = list.filter(isActive);
+        }
+
+        if (cogFilter) {
+          list = list.filter(function (c) { return c && c.cognitive === cogFilter; });
+        }
+        if (search) {
+          list = list.filter(function (c) {
+            return c && (c.name || '').toLowerCase().indexOf(search) !== -1;
+          });
+        }
+
+        if (currentLetterFilter) {
+          list = list.filter(function (c) {
+            return nameFirstLetter(c && c.name) === currentLetterFilter;
+          });
+        }
+
+        if (statusFilter === 'due') {
+          list = sortByReviewDueAsc(list);
+        } else if (statusFilter === 'discharged') {
+          list.sort(function (a, b) {
+            var ma = (a && (a.dischargedMonth || (a.dischargedAt || '').slice(0, 7))) || '';
+            var mb = (b && (b.dischargedMonth || (b.dischargedAt || '').slice(0, 7))) || '';
+            if (ma !== mb) return ma < mb ? 1 : -1;
+            return ((a && a.name) || '').localeCompare((b && b.name) || '', 'zh-HK');
+          });
+        } else {
+          list.sort(function (a, b) {
+            var da = (a && a.admissionDate) || '';
+            var db = (b && b.admissionDate) || '';
+            if (da !== db) return da < db ? -1 : 1;
+            return ((a && a.name) || '').localeCompare((b && b.name) || '', 'zh-HK');
+          });
+        }
+
+        var tbody = document.getElementById('caseTableBody');
+        var empty = document.getElementById('emptyMsg');
+        var countEl = document.getElementById('listCount');
+        var dbg = document.getElementById('tableDebug');
+        if (countEl) countEl.textContent = '（' + list.length + '）';
+        if (dbg) {
+          dbg.textContent = '資料庫: ' + totalAll + ' · 在籍: ' + totalActive + ' · 顯示: ' + list.length +
+            ' · 篩選: ' + statusFilter + (currentLetterFilter ? (' · 字母: ' + currentLetterFilter) : '');
+        }
+        if (!tbody) return;
+
+        if (!list.length) {
+          tbody.innerHTML = '';
+          if (empty) empty.style.display = 'block';
+          return;
+        }
+        if (empty) empty.style.display = 'none';
+
+        destroyDetailCharts();
+        var html = '';
+        for (var i = 0; i < list.length; i++) {
+          var c = list[i];
+          if (!c) continue;
+          var cid = c.id || ('tmp' + i);
+          var status = getReviewStatus(c);
+          var due = nextReviewDue(c.icpDate);
+          var dMonthShow = c.dischargedMonth || (c.dischargedAt ? String(c.dischargedAt).slice(0, 7) : '');
+          var isOpen = expandedCaseId === cid;
+          var histCount = (c.assessmentHistory && c.assessmentHistory.length) || 0;
+          html += '<tr class="case-main-row' + (isOpen ? ' is-open' : '') + '" data-id="' + escapeHtml(cid) + '" data-row="main">' +
+            '<td><strong>' + escapeHtml(c.name || '') + '</strong>' +
+              (histCount ? ' <span style="font-size:0.7rem;color:var(--muted);">(' + histCount + ' 次評估)</span>' : '') +
+            '</td>' +
+            '<td>' + formatDate(c.admissionDate) + '</td>' +
+            '<td>' + formatDate(c.icpDate) + '</td>' +
+            '<td>' + (isActive(c) ? formatDate(due) : '—') + '</td>' +
+            '<td>' + statusLabel(status) + '</td>' +
+            '<td>' + (isActive(c) ? '—' : formatDischargeMonth(dMonthShow)) + '</td>' +
+            '<td>' + cogBadge(c.cognitive) + '</td>' +
+            '<td>' + ynBadge(c.ptTraining) + '</td>' +
+            '<td>' + ynBadge(c.assistiveDevice) + '</td>' +
+            '<td class="no-print" style="white-space:nowrap;">' +
+              (isActive(c)
+                ? '<button type="button" class="btn-success btn-sm" data-act="review" data-id="' + escapeHtml(cid) + '">覆核</button> ' +
+                  '<button type="button" class="btn-primary btn-sm" data-act="detail" data-id="' + escapeHtml(cid) + '">評估詳情</button> ' +
+                  '<button type="button" class="btn-secondary btn-sm" data-act="edit" data-id="' + escapeHtml(cid) + '">編輯</button> ' +
+                  '<button type="button" class="btn-warning btn-sm" data-act="withdraw" data-id="' + escapeHtml(cid) + '">退會</button> ' +
+                  '<button type="button" class="btn-danger btn-sm" data-act="delete" data-id="' + escapeHtml(cid) + '">刪除</button>'
+                : '<button type="button" class="btn-primary btn-sm" data-act="detail" data-id="' + escapeHtml(cid) + '">評估詳情</button> ' +
+                  '<button type="button" class="btn-primary btn-sm" data-act="reactivate" data-id="' + escapeHtml(cid) + '">重新入會</button> ' +
+                  '<button type="button" class="btn-secondary btn-sm" data-act="edit" data-id="' + escapeHtml(cid) + '">編輯</button> ' +
+                  '<button type="button" class="btn-danger btn-sm" data-act="delete" data-id="' + escapeHtml(cid) + '">刪除</button>'
+              ) +
+            '</td></tr>';
+          if (isOpen) {
+            html += '<tr class="case-detail-row" data-id="' + escapeHtml(cid) + '" data-row="detail">' +
+              '<td colspan="10">' + buildDetailPanelHtml(c) + '</td></tr>';
+          }
+        }
+        tbody.innerHTML = html;
+        if (expandedCaseId) {
+          var openCase = list.find(function (x) { return x && x.id === expandedCaseId; });
+          if (openCase) renderDetailCharts(openCase);
+        }
+      } catch (err) {
+        console.error('renderTable error', err);
+        toast('列表顯示錯誤: ' + (err && err.message ? err.message : err));
+      }
+    }
+
+    document.getElementById('caseTableBody').addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = btn.getAttribute('data-id');
+        var act = btn.getAttribute('data-act');
+        if (act === 'review') askReview(id);
+        else if (act === 'detail') {
+          expandedCaseId = (expandedCaseId === id) ? null : id;
+          renderTable();
+        }
+        else if (act === 'edit') editCase(id);
+        else if (act === 'delete') askDelete(id);
+        else if (act === 'withdraw') askWithdraw(id);
+        else if (act === 'reactivate') askReactivate(id);
+        else if (act === 'del-assess') deleteAssessment(id, btn.getAttribute('data-assess-id'));
+        else if (act === 'edit-assess') openAssessmentModal(id, btn.getAttribute('data-assess-id'));
+        else if (act === 'add-assess') openAssessmentModal(id, null);
+        return;
+      }
+      var mainRow = e.target.closest('tr.case-main-row');
+      if (mainRow) {
+        var rid = mainRow.getAttribute('data-id');
+        expandedCaseId = (expandedCaseId === rid) ? null : rid;
+        renderTable();
+      }
+    });
+
+    function destroyDetailCharts() {
+      Object.keys(detailCharts).forEach(function (k) {
+        try { detailCharts[k].destroy(); } catch (e) {}
+      });
+      detailCharts = {};
+    }
+
+    function buildDetailPanelHtml(c) {
+      var hist = normalizeAssessments(c.assessmentHistory || []);
+      var tableRows = hist.slice().reverse().map(function (a) {
+        return '<tr>' +
+          '<td>' + formatDate(a.date) + '</td>' +
+          '<td>' + escapeHtml(a.cognitiveTool) + '</td>' +
+          '<td>' + formatScoreCell(a.cognitiveScore) + '</td>' +
+          '<td>' + formatScoreCell(a.mbiScore) + '</td>' +
+          '<td>' + formatScoreCell(a.lawtonScore) + '</td>' +
+          '<td>' + escapeHtml(a.notes || '—') + '</td>' +
+          '<td class="no-print" style="white-space:nowrap;">' +
+            '<button type="button" class="btn-secondary btn-sm" data-act="edit-assess" data-id="' +
+              escapeHtml(c.id) + '" data-assess-id="' + escapeHtml(a.id) + '">編輯</button> ' +
+            '<button type="button" class="btn-danger btn-sm" data-act="del-assess" data-id="' +
+              escapeHtml(c.id) + '" data-assess-id="' + escapeHtml(a.id) + '">刪</button>' +
+          '</td>' +
+          '</tr>';
+      }).join('');
+      var addBtn = '<div class="no-print" style="margin-bottom:0.45rem;">' +
+        '<button type="button" class="btn-success btn-sm" data-act="add-assess" data-id="' + escapeHtml(c.id) + '">＋ 新增評估紀錄</button>' +
+        '</div>';
+      var tableHtml = hist.length
+        ? addBtn + '<table class="assess-table"><thead><tr>' +
+          '<th>評估日期</th><th>評估工具</th><th>主要分數</th><th>功能分數</th><th>平衡/步態</th><th>備註</th><th class="no-print">操作</th>' +
+          '</tr></thead><tbody>' + tableRows + '</tbody></table>'
+        : addBtn + '<div class="detail-empty">尚未有評估紀錄。可按「覆核」或「＋ 新增評估紀錄」加入分數。</div>';
+
+      var toolsUsed = [];
+      hist.forEach(function (a) {
+        if (!a.cognitiveTool || a.cognitiveTool === 'N/A') return;
+        if (a.cognitiveScore === null || a.cognitiveScore === undefined) return;
+        if (toolsUsed.indexOf(a.cognitiveTool) === -1) toolsUsed.push(a.cognitiveTool);
+      });
+      var hasMbi = hist.some(function (a) { return a.mbiScore !== null && a.mbiScore !== undefined; });
+      var hasLawton = hist.some(function (a) { return a.lawtonScore !== null && a.lawtonScore !== undefined; });
+      var chartHtml = '';
+      if (hist.length) {
+        if (hasMbi) {
+          chartHtml += '<div class="detail-chart-box"><h5>功能／活動分數趨勢</h5><div class="chart-h"><canvas id="chart-mbi-' +
+            escapeHtml(c.id) + '"></canvas></div></div>';
+        }
+        if (hasLawton) {
+          chartHtml += '<div class="detail-chart-box"><h5>平衡／步態分數趨勢</h5><div class="chart-h"><canvas id="chart-lawton-' +
+            escapeHtml(c.id) + '"></canvas></div></div>';
+        }
+        toolsUsed.forEach(function (tool) {
+          var safe = String(tool).replace(/[^a-zA-Z0-9_-]/g, '_');
+          chartHtml += '<div class="detail-chart-box"><h5>主要分數趨勢 — ' + escapeHtml(tool) +
+            '</h5><div class="chart-h"><canvas id="chart-cog-' + escapeHtml(c.id) + '-' + safe +
+            '"></canvas></div></div>';
+        });
+      }
+
+      return '<div class="detail-panel"><div class="detail-grid">' +
+        '<div><h4>評估／ICP 歷史紀錄</h4>' + tableHtml + '</div>' +
+        '<div><h4>表現趨勢</h4><div class="detail-charts">' +
+        (chartHtml || '<div class="detail-empty">暫無圖表</div>') +
+        '</div></div></div></div>';
+    }
+
+    function renderDetailCharts(c) {
+      var hist = normalizeAssessments(c.assessmentHistory || []);
+      if (!hist.length) return;
+
+      var mbiPts = hist.filter(function (a) { return a.mbiScore !== null && a.mbiScore !== undefined; });
+      var mbiCanvas = document.getElementById('chart-mbi-' + c.id);
+      if (mbiCanvas && mbiPts.length) {
+        detailCharts['mbi-' + c.id] = new Chart(mbiCanvas, {
+          type: 'line',
+          data: {
+            labels: mbiPts.map(function (a) { return a.date; }),
+            datasets: [{
+              label: '功能分數',
+              data: mbiPts.map(function (a) { return a.mbiScore; }),
+              borderColor: COLORS.line[0],
+              backgroundColor: 'rgba(26,95,138,0.12)',
+              tension: 0.25,
+              fill: true,
+              pointRadius: 3
+            }]
+          },
+          options: lineChartOptions('功能分數')
+        });
+      }
+
+      var lawtonPts = hist.filter(function (a) { return a.lawtonScore !== null && a.lawtonScore !== undefined; });
+      var lawtonCanvas = document.getElementById('chart-lawton-' + c.id);
+      if (lawtonCanvas && lawtonPts.length) {
+        detailCharts['lawton-' + c.id] = new Chart(lawtonCanvas, {
+          type: 'line',
+          data: {
+            labels: lawtonPts.map(function (a) { return a.date; }),
+            datasets: [{
+              label: '平衡/步態',
+              data: lawtonPts.map(function (a) { return a.lawtonScore; }),
+              borderColor: COLORS.line[2],
+              backgroundColor: 'rgba(192,86,33,0.12)',
+              tension: 0.25,
+              fill: true,
+              pointRadius: 3
+            }]
+          },
+          options: lineChartOptions('平衡/步態')
+        });
+      }
+
+      var byTool = {};
+      hist.forEach(function (a) {
+        if (!a.cognitiveTool || a.cognitiveTool === 'N/A') return;
+        if (a.cognitiveScore === null || a.cognitiveScore === undefined) return;
+        if (!byTool[a.cognitiveTool]) byTool[a.cognitiveTool] = [];
+        byTool[a.cognitiveTool].push(a);
+      });
+      var toolKeys = Object.keys(byTool);
+      toolKeys.forEach(function (tool, idx) {
+        var safe = String(tool).replace(/[^a-zA-Z0-9_-]/g, '_');
+        var canvas = document.getElementById('chart-cog-' + c.id + '-' + safe);
+        if (!canvas) return;
+        var series = byTool[tool].slice().sort(function (a, b) {
+          return a.date < b.date ? -1 : 1;
+        });
+        var color = COLORS.line[(idx + 1) % COLORS.line.length];
+        detailCharts['cog-' + c.id + '-' + safe] = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: series.map(function (a) { return a.date; }),
+            datasets: [{
+              label: tool,
+              data: series.map(function (a) { return a.cognitiveScore; }),
+              borderColor: color,
+              backgroundColor: 'rgba(26,95,138,0.08)',
+              tension: 0.25,
+              fill: false,
+              pointRadius: 3
+            }]
+          },
+          options: lineChartOptions(tool)
+        });
+      });
+    }
+
+    function lineChartOptions(title) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+          title: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0 },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          y: {
+            ticks: { font: { size: 10 } },
+            grid: { color: 'rgba(0,0,0,0.06)' }
+          }
+        }
+      };
+    }
+
+    function deleteAssessment(caseId, assessId) {
+      var c = cases.find(function (x) { return x.id === caseId; });
+      if (!c) return;
+      openModal('刪除評估紀錄', '確定刪除此筆評估紀錄？不會還原 ICP Date。', async function () {
+        c.assessmentHistory = (c.assessmentHistory || []).filter(function (a) { return a.id !== assessId; });
+        c.updatedAt = new Date().toISOString();
+        await persist('刪除評估紀錄: ' + c.name);
+        expandedCaseId = caseId;
+        refreshAll();
+        toast('評估紀錄已刪除');
+      }, true);
+    }
+
+    function makePieOptions(total) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: 4 },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 10, boxHeight: 10, padding: 8,
+              font: { size: 11 }, color: '#4a5568',
+              generateLabels: function (chart) {
+                var data = chart.data;
+                if (!data.labels.length) return [];
+                return data.labels.map(function (label, i) {
+                  var value = data.datasets[0].data[i] || 0;
+                  var pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return {
+                    text: label + '  ' + value + ' (' + pct + '%)',
+                    fillStyle: data.datasets[0].backgroundColor[i],
+                    strokeStyle: '#fff', lineWidth: 1, hidden: false, index: i
+                  };
+                });
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var value = ctx.raw || 0;
+                var pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                return ' ' + ctx.label + ': ' + value + ' 人 (' + pct + '%)';
+              }
+            }
+          }
+        }
+      };
+    }
+
+    function renderCharts() {
+      var active = cases.filter(isActive);
+      var total = active.length;
+      var cogCounts = { Normal: 0, MCI: 0, 'Major NCD': 0, Dementia: 0 };
+      var ptCounts = { Yes: 0, No: 0 };
+      var devCounts = { Yes: 0, No: 0 };
+      active.forEach(function (c) {
+        if (cogCounts[c.cognitive] !== undefined) cogCounts[c.cognitive]++;
+        if (ptCounts[c.ptTraining] !== undefined) ptCounts[c.ptTraining]++;
+        if (devCounts[c.assistiveDevice] !== undefined) devCounts[c.assistiveDevice]++;
+      });
+      var opts = makePieOptions(total);
+
+      if (charts.cognitive) charts.cognitive.destroy();
+      charts.cognitive = new Chart(document.getElementById('chartCognitive'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(cogCounts),
+          datasets: [{ data: Object.values(cogCounts), backgroundColor: COLORS.cognitive, borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: opts
+      });
+      if (charts.pt) charts.pt.destroy();
+      charts.pt = new Chart(document.getElementById('chartPT'), {
+        type: 'pie',
+        data: {
+          labels: ['Yes', 'No'],
+          datasets: [{ data: [ptCounts.Yes, ptCounts.No], backgroundColor: COLORS.binary, borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: opts
+      });
+      if (charts.device) charts.device.destroy();
+      charts.device = new Chart(document.getElementById('chartDevice'), {
+        type: 'pie',
+        data: {
+          labels: ['Yes', 'No'],
+          datasets: [{ data: [devCounts.Yes, devCounts.No], backgroundColor: COLORS.device, borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: opts
+      });
+    }
+
+    function monthKey(dateStr) {
+      if (!dateStr || dateStr.length < 7) return null;
+      return dateStr.slice(0, 7);
+    }
+    function formatMonthLabel(ym) {
+      if (!ym) return '—';
+      var parts = ym.split('-');
+      return parts[0] + '年' + parseInt(parts[1], 10) + '月';
+    }
+
+    function renderReviewByMonth() {
+      var active = cases.filter(function (c) { return isActive(c) && c.icpDate; });
+      var groups = {};
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      var currentYM = today.toISOString().slice(0, 7);
+
+      active.forEach(function (c) {
+        var due = nextReviewDue(c.icpDate);
+        var key = monthKey(due);
+        if (!key) return;
+        if (!groups[key]) groups[key] = { cases: [], hasOverdue: false, hasDue: false };
+        var status = getReviewStatus(c);
+        groups[key].cases.push({ case: c, due: due, status: status });
+        if (status === 'overdue') groups[key].hasOverdue = true;
+        if (status === 'due') groups[key].hasDue = true;
+      });
+
+      Object.keys(groups).forEach(function (k) {
+        groups[k].cases.sort(function (a, b) {
+          if (a.due !== b.due) return a.due < b.due ? -1 : 1;
+          return (a.case.name || '').localeCompare(b.case.name || '', 'zh-HK');
+        });
+      });
+
+      var keys = Object.keys(groups).sort();
+      var container = document.getElementById('reviewByMonth');
+      var empty = document.getElementById('reviewByMonthEmpty');
+
+      if (!keys.length) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      container.innerHTML = keys.map(function (ym) {
+        var g = groups[ym];
+        var cardClass = 'month-card';
+        if (g.hasOverdue) cardClass += ' overdue-month';
+        else if (g.hasDue) cardClass += ' due-month';
+        else if (ym === currentYM) cardClass += ' current-month';
+
+        var items = g.cases.map(function (item) {
+          var c = item.case, due = item.due, status = item.status;
+          var dueClass = 'case-due';
+          if (status === 'overdue') dueClass += ' overdue';
+          else if (status === 'due') dueClass += ' due-soon';
+          return '<li><span class="case-name" title="' + escapeHtml(c.name) + '">' +
+            escapeHtml(c.name) + '</span><span class="' + dueClass + '">' + formatDate(due) + '</span></li>';
+        }).join('');
+
+        return '<div class="' + cardClass + '"><div class="month-title"><span>' +
+          formatMonthLabel(ym) + '</span><span class="count">' + g.cases.length +
+          ' 人</span></div><ul class="month-cases">' + items + '</ul></div>';
+      }).join('');
+    }
+
+    // ---------- Devices & bookings ----------
+    function getDeviceName(id) {
+      var d = devices.find(function (x) { return x.id === id; });
+      return d ? d.name : '（已刪器材）';
+    }
+    function getCaseName(id) {
+      var c = cases.find(function (x) { return x.id === id; });
+      return c ? c.name : '（已刪個案）';
+    }
+
+    function timeToMin(t) {
+      if (!t) return 0;
+      var p = t.split(':');
+      return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+    }
+
+    var WEEKDAY_LABELS = { '1': '星期一', '2': '星期二', '3': '星期三', '4': '星期四', '5': '星期五', '6': '星期六' };
+
+    function weekdayLabel(w) {
+      return WEEKDAY_LABELS[String(w)] || ('星期' + w);
+    }
+
+    function normalizeBookings(arr) {
+      if (!Array.isArray(arr)) return [];
+      return arr.map(function (b) {
+        if (!b || typeof b !== 'object') return null;
+        var wd = b.weekday != null ? String(b.weekday) : '';
+        if (!wd && b.date) {
+          try {
+            var d = new Date(b.date + 'T00:00:00');
+            var jsDay = d.getDay();
+            if (jsDay >= 1 && jsDay <= 6) wd = String(jsDay);
+          } catch (e) {}
+        }
+        if (!b.deviceId || !b.caseId || !wd || !b.startTime || !b.endTime) return null;
+        if (['1','2','3','4','5','6'].indexOf(wd) === -1) return null;
+        return {
+          id: b.id || uid(),
+          deviceId: b.deviceId,
+          caseId: b.caseId,
+          weekday: wd,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          note: String(b.note || '').trim()
+        };
+      }).filter(Boolean);
+    }
+
+    function findBookingConflict(deviceId, weekday, startTime, endTime, excludeId) {
+      var s = timeToMin(startTime);
+      var e = timeToMin(endTime);
+      if (e <= s) return { error: '結束時間必須晚於開始時間' };
+      var wd = String(weekday);
+      for (var i = 0; i < bookings.length; i++) {
+        var b = bookings[i];
+        if (excludeId && b.id === excludeId) continue;
+        if (b.deviceId !== deviceId || String(b.weekday) !== wd) continue;
+        var bs = timeToMin(b.startTime);
+        var be = timeToMin(b.endTime);
+        if (s < be && e > bs) {
+          return {
+            error: '與現有預約重疊：' + getCaseName(b.caseId) + ' ' + weekdayLabel(wd) + ' ' + b.startTime + '–' + b.endTime,
+            booking: b
+          };
+        }
+      }
+      return null;
+    }
+
+    function renderGerontech() {
+      renderDeviceList();
+      fillBookingSelects();
+      renderBookingList();
+    }
+
+    function renderDeviceList() {
+      var list = document.getElementById('deviceList');
+      var empty = document.getElementById('deviceEmpty');
+      var count = document.getElementById('deviceCount');
+      if (count) count.textContent = devices.length ? devices.length + ' 件' : '';
+      if (!devices.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      var sorted = devices.slice().sort(function (a, b) {
+        return a.name.localeCompare(b.name, 'zh-HK');
+      });
+      list.innerHTML = sorted.map(function (d) {
+        var useCount = bookings.filter(function (b) { return b.deviceId === d.id; }).length;
+        return '<li data-id="' + escapeHtml(d.id) + '">' +
+          '<div class="gt-main"><div class="gt-name">' + escapeHtml(d.name) + '</div>' +
+          '<div class="gt-meta">' + (d.note ? escapeHtml(d.note) + ' · ' : '') + '預約 ' + useCount + ' 次</div></div>' +
+          '<div class="gt-actions">' +
+          '<button type="button" class="btn-secondary btn-sm" data-act="edit-device" data-id="' + escapeHtml(d.id) + '">編輯</button> ' +
+          '<button type="button" class="btn-danger btn-sm" data-act="del-device" data-id="' + escapeHtml(d.id) + '">刪除</button>' +
+          '</div></li>';
+      }).join('');
+    }
+
+    function fillBookingSelects() {
+      var devSel = document.getElementById('bookingDevice');
+      var curDev = devSel.value;
+      var devOpts = devices.slice().sort(function (a, b) {
+        return a.name.localeCompare(b.name, 'zh-HK');
+      }).map(function (d) {
+        return '<option value="' + escapeHtml(d.id) + '">' + escapeHtml(d.name) + '</option>';
+      });
+      devSel.innerHTML = '<option value="">— 選擇器材 —</option>' + devOpts.join('');
+      if (curDev) devSel.value = curDev;
+      renderCaseComboList();
+    }
+
+    function getActiveCasesSorted() {
+      return cases.filter(isActive).sort(function (a, b) {
+        return (a.name || '').localeCompare(b.name || '', 'zh-HK');
+      });
+    }
+
+    function renderCaseComboList(filterText) {
+      var box = document.getElementById('bookingCaseList');
+      if (!box) return;
+      var q = (filterText || '').trim().toLowerCase();
+      var list = getActiveCasesSorted();
+      if (q) {
+        list = list.filter(function (c) {
+          return (c.name || '').toLowerCase().indexOf(q) !== -1;
+        });
+      }
+      if (!list.length) {
+        box.innerHTML = '<div style="color:#5a6a7a;cursor:default;">無符合個案</div>';
+        return;
+      }
+      box.innerHTML = list.map(function (c) {
+        return '<div data-id="' + escapeHtml(c.id) + '" data-name="' + escapeHtml(c.name) + '">' +
+          escapeHtml(c.name) + '</div>';
+      }).join('');
+    }
+
+    function openCaseCombo() {
+      renderCaseComboList(document.getElementById('bookingCaseSearch').value);
+      document.getElementById('bookingCaseList').classList.add('show');
+    }
+    function closeCaseCombo() {
+      document.getElementById('bookingCaseList').classList.remove('show');
+    }
+    function selectBookingCase(id, name) {
+      document.getElementById('bookingCase').value = id || '';
+      document.getElementById('bookingCaseSearch').value = name || '';
+      closeCaseCombo();
+    }
+
+    function renderBookingList() {
+      var list = document.getElementById('bookingList');
+      var empty = document.getElementById('bookingEmpty');
+      var count = document.getElementById('bookingCount');
+      var filterWd = (document.getElementById('bookingFilterWeekday').value || '').trim();
+
+      var rows = bookings.slice();
+      if (filterWd) {
+        rows = rows.filter(function (b) { return String(b.weekday) === filterWd; });
+      }
+      rows.sort(function (a, b) {
+        var wa = parseInt(a.weekday, 10) || 0;
+        var wb = parseInt(b.weekday, 10) || 0;
+        if (wa !== wb) return wa - wb;
+        if (a.startTime !== b.startTime) return a.startTime < b.startTime ? -1 : 1;
+        return getDeviceName(a.deviceId).localeCompare(getDeviceName(b.deviceId), 'zh-HK');
+      });
+
+      if (count) count.textContent = rows.length ? rows.length + ' 筆' : '';
+      if (!rows.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = rows.map(function (b) {
+        var meta = weekdayLabel(b.weekday) + ' · ' + b.startTime + '–' + b.endTime;
+        if (b.note) meta += ' · ' + escapeHtml(b.note);
+        return '<li data-id="' + escapeHtml(b.id) + '">' +
+          '<div class="gt-main">' +
+          '<div class="gt-name"><span class="badge badge-device">' + escapeHtml(getDeviceName(b.deviceId)) + '</span> ' +
+          escapeHtml(getCaseName(b.caseId)) + '</div>' +
+          '<div class="gt-meta">' + meta + '</div></div>' +
+          '<div class="gt-actions">' +
+          '<button type="button" class="btn-secondary btn-sm" data-act="edit-booking" data-id="' + escapeHtml(b.id) + '">編輯</button> ' +
+          '<button type="button" class="btn-danger btn-sm" data-act="del-booking" data-id="' + escapeHtml(b.id) + '">刪除</button>' +
+          '</div></li>';
+      }).join('');
+    }
+
+    function resetDeviceForm() {
+      document.getElementById('deviceEditId').value = '';
+      document.getElementById('deviceName').value = '';
+      document.getElementById('deviceNote').value = '';
+      document.getElementById('btnSaveDevice').textContent = '新增';
+      document.getElementById('btnCancelDevice').style.display = 'none';
+    }
+
+    function resetBookingForm() {
+      document.getElementById('bookingEditId').value = '';
+      document.getElementById('bookingDevice').value = '';
+      document.getElementById('bookingCase').value = '';
+      document.getElementById('bookingCaseSearch').value = '';
+      document.getElementById('bookingWeekday').value = '';
+      document.getElementById('bookingStart').value = '';
+      document.getElementById('bookingEnd').value = '';
+      document.getElementById('bookingNote').value = '';
+      document.getElementById('btnSaveBooking').textContent = '預約';
+      document.getElementById('btnCancelBooking').style.display = 'none';
+      document.getElementById('bookingConflict').classList.remove('show');
+      document.getElementById('bookingConflict').textContent = '';
+      closeCaseCombo();
+    }
+
+    async function saveDevice() {
+      var name = document.getElementById('deviceName').value.trim();
+      var note = document.getElementById('deviceNote').value.trim();
+      var editId = document.getElementById('deviceEditId').value;
+      if (!name) { toast('請輸入器材名稱'); return; }
+      var dup = devices.find(function (d) {
+        return d.name.toLowerCase() === name.toLowerCase() && d.id !== editId;
+      });
+      if (dup) { toast('已有相同名稱的器材'); return; }
+
+      if (editId) {
+        var idx = devices.findIndex(function (d) { return d.id === editId; });
+        if (idx === -1) return;
+        devices[idx] = { id: editId, name: name, note: note };
+        await persist('更新器材: ' + name);
+        toast('器材已更新');
+      } else {
+        devices.push({ id: uid(), name: name, note: note });
+        await persist('新增器材: ' + name);
+        toast('器材已新增');
+      }
+      resetDeviceForm();
+      renderGerontech();
+    }
+
+    function editDevice(id) {
+      var d = devices.find(function (x) { return x.id === id; });
+      if (!d) return;
+      document.getElementById('deviceEditId').value = d.id;
+      document.getElementById('deviceName').value = d.name;
+      document.getElementById('deviceNote').value = d.note || '';
+      document.getElementById('btnSaveDevice').textContent = '更新';
+      document.getElementById('btnCancelDevice').style.display = 'inline-block';
+    }
+
+    function deleteDevice(id) {
+      var d = devices.find(function (x) { return x.id === id; });
+      if (!d) return;
+      var related = bookings.filter(function (b) { return b.deviceId === id; }).length;
+      var msg = related
+        ? '確定刪除器材「' + d.name + '」？將同時刪除 ' + related + ' 筆相關預約。'
+        : '確定刪除器材「' + d.name + '」？';
+      openModal('刪除器材', msg, async function () {
+        devices = devices.filter(function (x) { return x.id !== id; });
+        bookings = bookings.filter(function (b) { return b.deviceId !== id; });
+        await persist('刪除器材: ' + d.name);
+        resetDeviceForm();
+        renderGerontech();
+        toast('器材已刪除');
+      }, true);
+    }
+
+    async function saveBooking() {
+      var deviceId = document.getElementById('bookingDevice').value;
+      var caseId = document.getElementById('bookingCase').value;
+      var weekday = document.getElementById('bookingWeekday').value;
+      var startTime = document.getElementById('bookingStart').value;
+      var endTime = document.getElementById('bookingEnd').value;
+      var note = document.getElementById('bookingNote').value.trim();
+      var editId = document.getElementById('bookingEditId').value;
+      var conflictBox = document.getElementById('bookingConflict');
+
+      if (!deviceId || !caseId || !weekday || !startTime || !endTime) {
+        toast('請填寫器材、個案、星期與時段');
+        return;
+      }
+      var conflict = findBookingConflict(deviceId, weekday, startTime, endTime, editId || null);
+      if (conflict) {
+        conflictBox.textContent = '⚠ ' + conflict.error;
+        conflictBox.classList.add('show');
+        toast(conflict.error);
+        return;
+      }
+      conflictBox.classList.remove('show');
+
+      if (editId) {
+        var idx = bookings.findIndex(function (b) { return b.id === editId; });
+        if (idx === -1) return;
+        bookings[idx] = {
+          id: editId, deviceId: deviceId, caseId: caseId,
+          weekday: String(weekday), startTime: startTime, endTime: endTime, note: note
+        };
+        await persist('更新預約');
+        toast('預約已更新');
+      } else {
+        bookings.push({
+          id: uid(), deviceId: deviceId, caseId: caseId,
+          weekday: String(weekday), startTime: startTime, endTime: endTime, note: note
+        });
+        await persist('新增預約');
+        toast('預約已新增');
+      }
+      resetBookingForm();
+      renderGerontech();
+    }
+
+    function editBooking(id) {
+      var b = bookings.find(function (x) { return x.id === id; });
+      if (!b) return;
+      fillBookingSelects();
+      document.getElementById('bookingEditId').value = b.id;
+      document.getElementById('bookingDevice').value = b.deviceId;
+      document.getElementById('bookingCase').value = b.caseId;
+      document.getElementById('bookingCaseSearch').value = getCaseName(b.caseId);
+      document.getElementById('bookingWeekday').value = String(b.weekday);
+      document.getElementById('bookingStart').value = b.startTime;
+      document.getElementById('bookingEnd').value = b.endTime;
+      document.getElementById('bookingNote').value = b.note || '';
+      document.getElementById('btnSaveBooking').textContent = '更新';
+      document.getElementById('btnCancelBooking').style.display = 'inline-block';
+      document.getElementById('bookingConflict').classList.remove('show');
+    }
+
+    function deleteBooking(id) {
+      var b = bookings.find(function (x) { return x.id === id; });
+      if (!b) return;
+      openModal('刪除預約',
+        '確定刪除預約？\n' + getDeviceName(b.deviceId) + ' · ' + getCaseName(b.caseId) +
+        ' · ' + weekdayLabel(b.weekday) + ' ' + b.startTime + '–' + b.endTime,
+        async function () {
+          bookings = bookings.filter(function (x) { return x.id !== id; });
+          await persist('刪除預約');
+          resetBookingForm();
+          renderGerontech();
+          toast('預約已刪除');
+        }, true);
+    }
+
+    document.getElementById('btnSaveDevice').addEventListener('click', function () { saveDevice(); });
+    document.getElementById('btnCancelDevice').addEventListener('click', function () { resetDeviceForm(); });
+    document.getElementById('btnSaveBooking').addEventListener('click', function () { saveBooking(); });
+    document.getElementById('btnCancelBooking').addEventListener('click', function () { resetBookingForm(); });
+
+    document.getElementById('deviceList').addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var act = btn.getAttribute('data-act');
+      if (act === 'edit-device') editDevice(id);
+      else if (act === 'del-device') deleteDevice(id);
+    });
+    document.getElementById('bookingList').addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var act = btn.getAttribute('data-act');
+      if (act === 'edit-booking') editBooking(id);
+      else if (act === 'del-booking') deleteBooking(id);
+    });
+
+    function printPage() {
+      var wraps = document.querySelectorAll('.chart-wrap');
+      var boxes = document.querySelectorAll('.chart-canvas-box');
+      var prev = [];
+      for (var i = 0; i < wraps.length; i++) {
+        prev.push({ h: wraps[i].style.height, o: wraps[i].style.overflow });
+        wraps[i].style.height = '340px';
+        wraps[i].style.overflow = 'visible';
+      }
+      for (var j = 0; j < boxes.length; j++) {
+        boxes[j].style.minHeight = '280px';
+        boxes[j].style.height = '280px';
+      }
+      try {
+        if (charts.cognitive) charts.cognitive.resize();
+        if (charts.pt) charts.pt.resize();
+        if (charts.device) charts.device.resize();
+      } catch (e) {}
+
+      var restored = false;
+      function restore() {
+        if (restored) return;
+        restored = true;
+        for (var i = 0; i < wraps.length; i++) {
+          wraps[i].style.height = prev[i] ? prev[i].h : '';
+          wraps[i].style.overflow = prev[i] ? prev[i].o : '';
+        }
+        for (var j = 0; j < boxes.length; j++) {
+          boxes[j].style.minHeight = '';
+          boxes[j].style.height = '';
+        }
+        try {
+          if (charts.cognitive) charts.cognitive.resize();
+          if (charts.pt) charts.pt.resize();
+          if (charts.device) charts.device.resize();
+        } catch (e2) {}
+        window.removeEventListener('afterprint', restore);
+      }
+      window.addEventListener('afterprint', restore);
+      setTimeout(restore, 3000);
+      setTimeout(function () { window.print(); }, 150);
+    }
+
+    function exportCSV() {
+      var headers = ['姓名', '入會日期', 'ICP Date', '認知水平', 'PT Training', '使用輔助器材', '狀態', '退會年月'];
+      var rows = cases.map(function (c) {
+        return [c.name, c.admissionDate, c.icpDate, c.cognitive, c.ptTraining, c.assistiveDevice,
+          isActive(c) ? '在籍' : '已退會', (c.dischargedMonth || (c.dischargedAt ? String(c.dischargedAt).slice(0, 7) : '')) || ''];
+      });
+      var csv = [headers].concat(rows).map(function (r) {
+        return r.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\n');
+      var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '物理治療個案_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('已匯出 CSV');
+    }
+
+    function importCSV(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = async function (ev) {
+        try {
+          var text = ev.target.result.replace(/^\uFEFF/, '');
+          var lines = text.split(/\r?\n/).filter(function (l) { return l.trim(); });
+          if (lines.length < 2) { toast('CSV 內容不足'); return; }
+          function parseLine(line) {
+            var result = []; var cur = ''; var inQ = false;
+            for (var i = 0; i < line.length; i++) {
+              var ch = line[i];
+              if (ch === '"') {
+                if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+                else inQ = !inQ;
+              } else if (ch === ',' && !inQ) { result.push(cur); cur = ''; }
+              else cur += ch;
+            }
+            result.push(cur);
+            return result;
+          }
+          var added = 0;
+          for (var i = 1; i < lines.length; i++) {
+            var cols = parseLine(lines[i]);
+            if (cols.length < 6) continue;
+            var name = cols[0].trim();
+            if (!name) continue;
+            var statusStr = (cols[6] || '').trim();
+            var isDischarged = statusStr === '已離院' || statusStr === '已退會' || statusStr === 'discharged';
+            if (!isDischarged && cases.filter(isActive).length + added >= MAX_CASELOAD) break;
+            cases.push({
+              id: uid(), name: name,
+              admissionDate: cols[1].trim(),
+              icpDate: cols[2].trim() || cols[1].trim(),
+              cognitive: cols[3].trim() || 'Normal',
+              ptTraining: cols[4].trim() === 'Yes' ? 'Yes' : 'No',
+              assistiveDevice: cols[5].trim() === 'Yes' ? 'Yes' : 'No',
+              status: isDischarged ? 'discharged' : 'active',
+              dischargedMonth: isDischarged && cols[7] ? cols[7].trim().slice(0, 7) : null,
+              dischargedAt: isDischarged && cols[7] ? (cols[7].trim().length === 7 ? cols[7].trim() + '-01' : cols[7].trim()) : null,
+              assessmentHistory: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            added++;
+          }
+          await persist('匯入 CSV: ' + added + ' 筆');
+          refreshAll();
+          toast('已匯入 ' + added + ' 筆個案');
+        } catch (err) {
+          toast('匯入失敗，請檢查 CSV 格式');
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    document.getElementById('btnSaveReview').addEventListener('click', function () { saveReviewRecord(); });
+    document.getElementById('reviewCogTool').addEventListener('change', function () { syncOtherToolField(); });
+
+    document.getElementById('filterStatusBtns').addEventListener('click', function (e) {
+      var btn = e.target.closest('button.filter-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var f = btn.getAttribute('data-filter') || 'all';
+      setStatusFilter(f);
+    });
+    document.getElementById('alphaFilters').addEventListener('click', function (e) {
+      var btn = e.target.closest('button.alpha-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLetterFilter(btn.getAttribute('data-letter') || '');
+    });
+    document.getElementById('filterCognitive').addEventListener('change', function () { renderTable(); });
+    document.getElementById('searchName').addEventListener('input', function () { renderTable(); });
+
+    document.getElementById('bookingCaseSearch').addEventListener('focus', function () { openCaseCombo(); });
+    document.getElementById('bookingCaseSearch').addEventListener('input', function () {
+      document.getElementById('bookingCase').value = '';
+      openCaseCombo();
+    });
+    document.getElementById('bookingCaseList').addEventListener('mousedown', function (e) {
+      var row = e.target.closest('div[data-id]');
+      if (!row) return;
+      e.preventDefault();
+      selectBookingCase(row.getAttribute('data-id'), row.getAttribute('data-name'));
+    });
+    document.addEventListener('click', function (e) {
+      var combo = e.target.closest('.case-combo');
+      if (!combo) closeCaseCombo();
+    });
+
+    document.getElementById('btnClearBookingFilter').addEventListener('click', function () {
+      document.getElementById('bookingFilterWeekday').value = '';
+      renderBookingList();
+    });
+    document.getElementById('bookingFilterWeekday').addEventListener('change', function () { renderBookingList(); });
+
+    window.addEventListener('pageshow', function () {
+      clearCaseSearchBox();
+      if (cases.length) renderTable();
+    });
+
+    setInterval(function () {
+      try {
+        var tbody = document.getElementById('caseTableBody');
+        if (cases.length > 0 && tbody && tbody.children.length === 0) {
+          renderTable();
+        }
+      } catch (e) {}
+    }, 1500);
+
+    (async function init() {
+      currentStatusFilter = 'all';
+      currentLetterFilter = '';
+      buildAlphaFilters();
+
+      clearCaseSearchBox();
+      setTimeout(clearCaseSearchBox, 100);
+      setTimeout(function () { clearCaseSearchBox(); renderTable(); }, 500);
+      setTimeout(function () { clearCaseSearchBox(); renderTable(); }, 1500);
+      loadLocal();
+      refreshAll();
+      setStatusFilter('all');
+      if (getToken()) {
+        await pullFromGitHub();
+        currentStatusFilter = 'all';
+        setStatusFilter('all');
+      } else {
+        updateSyncUI('local', '本機模式');
+      }
+    })();
+  </script>
+</body>
+</html>
