@@ -7,19 +7,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg: #eef4f8;
+      --bg: #f7f3e6;
       --card: #ffffff;
-      --primary: #0c3a5a;
-      --primary-mid: #1a5f8a;
-      --primary-light: #e6f1f8;
-      --accent: #2b6cb0;
+      --primary: #6b4f00;
+      --primary-mid: #9a7b0a;
+      --primary-light: #f5ecd0;
+      --accent: #c9a227;
       --success: #276749;
       --warning: #975a16;
       --danger: #9b2c2c;
-      --muted: #5a6a72;
-      --border: #c5d4e0;
-      --text: #142028;
-      --shadow: 0 1px 2px rgb(12 58 90 / 0.07), 0 1px 3px rgb(12 58 90 / 0.05);
+      --muted: #6a6250;
+      --border: #e0d6b8;
+      --text: #2a2414;
+      --shadow: 0 1px 2px rgb(107 79 0 / 0.08), 0 1px 3px rgb(107 79 0 / 0.06);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -30,10 +30,10 @@
       min-height: 100vh;
     }
     header {
-      background: linear-gradient(135deg, #0a2a40 0%, #1a5f8a 55%, #2b6cb0 100%);
+      background: linear-gradient(135deg, #4a3800 0%, #7a5c00 45%, #b8860b 100%);
       color: #fff;
       padding: 1rem 1.5rem;
-      box-shadow: 0 2px 8px rgb(10 42 64 / 0.25);
+      box-shadow: 0 2px 8px rgb(74 56 0 / 0.28);
     }
     header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.02em; }
     header p { opacity: 0.88; font-size: 0.82rem; margin-top: 0.15rem; }
@@ -136,7 +136,7 @@
     input:focus, select:focus {
       outline: none;
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.15);
+      box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.25);
     }
 
     button {
@@ -290,8 +290,8 @@
     .gt-conflict.show { display: block; }
     .badge-device { background: #bee3f8; color: #2a4365; }
     tr.case-main-row { cursor: pointer; }
-    tr.case-main-row:hover { background: #f0f5f9; }
-    tr.case-main-row.is-open { background: #e6f1f8; }
+    tr.case-main-row:hover { background: #faf6e8; }
+    tr.case-main-row.is-open { background: #f5ecd0; }
     tr.case-detail-row td {
       background: #f7fafc; border-top: none;
       padding: 0.75rem 0.9rem 1rem;
@@ -421,13 +421,13 @@
 
     .modal-overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(26, 54, 93, 0.45); z-index: 100;
+      background: rgba(74, 56, 0, 0.45); z-index: 100;
       align-items: center; justify-content: center; padding: 1rem;
     }
     .modal-overlay.show { display: flex; }
     .modal {
       background: #fff; border-radius: 10px; max-width: 420px; width: 100%;
-      padding: 1.25rem; box-shadow: 0 20px 40px rgb(26 54 93 / 0.2);
+      padding: 1.25rem; box-shadow: 0 20px 40px rgb(74 56 0 / 0.22);
       max-height: 90vh; overflow-y: auto;
     }
     .modal h3 { margin-bottom: 0.55rem; font-size: 1rem; color: var(--primary); }
@@ -459,7 +459,7 @@
         overflow: visible !important;
       }
       header {
-        background: #0a2a40 !important;
+        background: #4a3800 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         box-shadow: none !important;
@@ -958,9 +958,9 @@
 
     const COLORS = {
       cognitive: ['#2C7A7B', '#D69E2E', '#DD6B20', '#C53030'],
-      binary: ['#1A5F8A', '#A0AEC0'],
-      device: ['#2B6CB0', '#A0AEC0'],
-      line: ['#1A5F8A', '#2B6CB0', '#C05621', '#2C7A7B', '#805AD5', '#C53030']
+      binary: ['#9A7B0A', '#A0AEC0'],
+      device: ['#B8860B', '#A0AEC0'],
+      line: ['#9A7B0A', '#B8860B', '#C05621', '#2C7A7B', '#805AD5', '#C53030']
     };
 
     var COG_TOOLS = ['Berg Balance Scale', 'TUG', '6MWT', 'Tinetti', 'Timed Chair Stand', 'N/A', 'other'];
@@ -2087,7 +2087,7 @@
               label: '功能分數',
               data: mbiPts.map(function (a) { return a.mbiScore; }),
               borderColor: COLORS.line[0],
-              backgroundColor: 'rgba(26,95,138,0.12)',
+              backgroundColor: 'rgba(154,123,10,0.14)',
               tension: 0.25,
               fill: true,
               pointRadius: 3
@@ -2142,7 +2142,7 @@
               label: tool,
               data: series.map(function (a) { return a.cognitiveScore; }),
               borderColor: color,
-              backgroundColor: 'rgba(26,95,138,0.08)',
+              backgroundColor: 'rgba(154,123,10,0.10)',
               tension: 0.25,
               fill: false,
               pointRadius: 3
