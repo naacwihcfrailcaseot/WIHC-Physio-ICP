@@ -1474,11 +1474,6 @@
       "note": ""
     },
     {
-      "id": "mtmc2bg4l32cm8",
-      "name": "FitMi",
-      "note": ""
-    },
-    {
       "id": "mtmc2hizsnb4al",
       "name": "Music Glove",
       "note": ""
@@ -1501,15 +1496,6 @@
       "weekday": "1",
       "startTime": "11:00",
       "endTime": "12:00",
-      "note": "彩虹"
-    },
-    {
-      "id": "mtmci3tdhau911",
-      "deviceId": "mtmc2bg4l32cm8",
-      "caseId": "mth09qpf5libr8",
-      "weekday": "3",
-      "startTime": "11:15",
-      "endTime": "12:15",
       "note": "彩虹"
     },
     {
