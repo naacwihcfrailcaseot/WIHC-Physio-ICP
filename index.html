@@ -1230,6 +1230,21 @@
       }
     }
 
+    async function fetchRemoteSha(token) {
+      var getUrl = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH + '?ref=' + encodeURIComponent(GH_BRANCH);
+      var getRes = await fetch(getUrl, {
+        headers: ghHeaders(token),
+        cache: 'no-store'
+      });
+      if (getRes.ok) {
+        var meta = await getRes.json();
+        return meta.sha || null;
+      }
+      if (getRes.status === 404) return null;
+      var err = await getRes.json().catch(function () { return {}; });
+      throw new Error(err.message || ('無法取得檔案狀態 HTTP ' + getRes.status));
+    }
+
     async function pushToGitHub(message) {
       var token = getToken();
       if (!token) {
@@ -1240,40 +1255,43 @@
       saving = true;
       updateSyncUI('syncing', '儲存中…');
       try {
-        var getUrl = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH + '?ref=' + encodeURIComponent(GH_BRANCH);
-        var getRes = await fetch(getUrl, { headers: ghHeaders(token) });
-        if (getRes.ok) {
-          var meta = await getRes.json();
-          fileSha = meta.sha;
-        } else if (getRes.status === 404) {
-          fileSha = null;
-        } else {
-          throw new Error('無法取得檔案狀態');
-        }
-
         var content = encodeBase64Utf8(JSON.stringify(buildDocument(), null, 2));
-        var body = {
-          message: message || ('更新個案 ' + new Date().toISOString()),
-          content: content,
-          branch: GH_BRANCH
-        };
-        if (fileSha) body.sha = fileSha;
-
         var putUrl = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH;
-        var putRes = await fetch(putUrl, {
-          method: 'PUT',
-          headers: ghHeaders(token, { 'Content-Type': 'application/json' }),
-          body: JSON.stringify(body)
-        });
-        if (!putRes.ok) {
+        var lastErr = null;
+        // Retry up to 3 times on SHA mismatch (concurrent edit / stale sha)
+        for (var attempt = 1; attempt <= 3; attempt++) {
+          fileSha = await fetchRemoteSha(token);
+          var body = {
+            message: message || ('更新個案 ' + new Date().toISOString()),
+            content: content,
+            branch: GH_BRANCH
+          };
+          if (fileSha) body.sha = fileSha;
+
+          var putRes = await fetch(putUrl, {
+            method: 'PUT',
+            headers: ghHeaders(token, { 'Content-Type': 'application/json' }),
+            body: JSON.stringify(body),
+            cache: 'no-store'
+          });
+          if (putRes.ok) {
+            var result = await putRes.json();
+            fileSha = result.content && result.content.sha;
+            saveLocal();
+            updateSyncUI('ok', '已同步 · ' + new Date().toLocaleTimeString('zh-HK'));
+            return true;
+          }
           var err2 = await putRes.json().catch(function () { return {}; });
-          throw new Error(err2.message || ('HTTP ' + putRes.status));
+          lastErr = err2.message || ('HTTP ' + putRes.status);
+          // SHA conflict → refresh and retry
+          if (putRes.status === 409 || /does not match/i.test(String(lastErr))) {
+            console.warn('SHA conflict, retry', attempt, lastErr);
+            await new Promise(function (r) { setTimeout(r, 200 * attempt); });
+            continue;
+          }
+          throw new Error(lastErr);
         }
-        var result = await putRes.json();
-        fileSha = result.content && result.content.sha;
-        saveLocal();
-        updateSyncUI('ok', '已同步 · ' + new Date().toLocaleTimeString('zh-HK'));
-        return true;
+        throw new Error(lastErr || 'SHA 衝突，請按「重新同步」後再試');
       } catch (e) {
         console.error(e);
         updateSyncUI('err', '儲存失敗');
