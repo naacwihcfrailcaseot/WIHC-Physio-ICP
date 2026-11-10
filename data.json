@@ -58,7 +58,7 @@
         }
       ],
       "createdAt": "2026-08-31T08:01:19.299Z",
-      "updatedAt": "2026-11-10T09:41:07.754Z"
+      "updatedAt": "2026-11-05T08:36:09.879Z"
     },
     {
       "id": "mtgyidqikovnnh",
@@ -1482,11 +1482,6 @@
       "id": "mtmc2hizsnb4al",
       "name": "Music Glove",
       "note": ""
-    },
-    {
-      "id": "mtmc2ntvx9sn5w",
-      "name": "板琴",
-      "note": ""
     }
   ],
   "bookings": [
@@ -1498,15 +1493,6 @@
       "startTime": "11:00",
       "endTime": "12:00",
       "note": "樂富"
-    },
-    {
-      "id": "mtmce8qrn4r7yk",
-      "deviceId": "mtmc2ntvx9sn5w",
-      "caseId": "mtgzqtx92mety5",
-      "weekday": "1",
-      "startTime": "11:00",
-      "endTime": "12:00",
-      "note": "橫頭磡"
     },
     {
       "id": "mtmcfe69n2qpyj",
