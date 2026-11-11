@@ -343,10 +343,10 @@
       display: inline-block; padding: 0.1rem 0.4rem;
       border-radius: 999px; font-size: 0.7rem; font-weight: 600;
     }
-    .badge-normal { background: #c6f6d5; color: #22543d; }
-    .badge-mci { background: #fefcbf; color: #744210; }
-    .badge-major { background: #feebc8; color: #7b341e; }
-    .badge-dementia { background: #fed7d7; color: #742a2a; }
+    .badge-independent { background: #c6f6d5; color: #22543d; }
+    .badge-standby { background: #bee3f8; color: #2a4365; }
+    .badge-mild { background: #fefcbf; color: #744210; }
+    .badge-mod { background: #feebc8; color: #7b341e; }
     .badge-yes { background: #bee3f8; color: #2a4365; }
     .badge-no { background: #e2e8f0; color: #4a5568; }
     .badge-due { background: #feebc8; color: #744210; }
@@ -606,12 +606,12 @@
               <input type="date" id="icpDate" required />
             </div>
             <div class="form-group select">
-              <label for="cognitive">Cognitive Level *</label>
-              <select id="cognitive" required>
-                <option value="Normal">Normal</option>
-                <option value="MCI">MCI</option>
-                <option value="Major NCD">Major NCD</option>
-                <option value="Dementia">Dementia</option>
+              <label for="functionalStatus">Functional Status *</label>
+              <select id="functionalStatus" required>
+                <option value="Independent">Independent</option>
+                <option value="Standby Assist">Standby Assist</option>
+                <option value="1 Mild Assist">1 Mild Assist</option>
+                <option value="2 Mod Assist">2 Mod Assist</option>
               </select>
             </div>
             <div class="form-group select">
@@ -658,12 +658,12 @@
             <button type="button" class="filter-btn" data-filter="due">須覆核/過期</button>
             <button type="button" class="filter-btn" data-filter="discharged">已退會</button>
           </div>
-          <select id="filterCognitive">
-            <option value="" selected>全部認知水平</option>
-            <option value="Normal">Normal</option>
-            <option value="MCI">MCI</option>
-            <option value="Major NCD">Major NCD</option>
-            <option value="Dementia">Dementia</option>
+          <select id="filterFunctional">
+            <option value="" selected>全部功能狀態</option>
+            <option value="Independent">Independent</option>
+            <option value="Standby Assist">Standby Assist</option>
+            <option value="1 Mild Assist">1 Mild Assist</option>
+            <option value="2 Mod Assist">2 Mod Assist</option>
           </select>
           <input type="text" id="searchName" name="caseListSearch" placeholder="搜尋姓名…" style="min-width:120px;"
                  autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
@@ -681,7 +681,7 @@
                 <th>下次覆核期限</th>
                 <th>覆核狀態</th>
                 <th>退會年月</th>
-                <th>認知</th>
+                <th>功能狀態</th>
                 <th>PT</th>
                 <th>輔助器材</th>
                 <th class="no-print">操作</th>
@@ -696,8 +696,8 @@
 
     <div class="charts">
       <div class="chart-wrap">
-        <h3>Cognitive Level</h3>
-        <div class="chart-canvas-box"><canvas id="chartCognitive"></canvas></div>
+        <h3>Functional Status</h3>
+        <div class="chart-canvas-box"><canvas id="chartFunctional"></canvas></div>
       </div>
       <div class="chart-wrap">
         <h3>PT Training</h3>
@@ -948,7 +948,7 @@
     let cases = [];
     let devices = [];
     let bookings = [];
-    let charts = { cognitive: null, pt: null, device: null };
+    let charts = { functional: null, pt: null, device: null };
     let detailCharts = {};
     let expandedCaseId = null;
     let pendingAction = null;
@@ -957,7 +957,7 @@
     let pullInFlight = false;
 
     const COLORS = {
-      cognitive: ['#2C7A7B', '#D69E2E', '#DD6B20', '#C53030'],
+      functional: ['#276749', '#2B6CB0', '#D69E2E', '#C05621'],
       binary: ['#9A7B0A', '#A0AEC0'],
       device: ['#B8860B', '#A0AEC0'],
       line: ['#9A7B0A', '#B8860B', '#C05621', '#2C7A7B', '#805AD5', '#C53030']
@@ -1033,7 +1033,17 @@
           name: String(c.name || '').trim(),
           admissionDate: c.admissionDate || '',
           icpDate: c.icpDate || c.admissionDate || '',
-          cognitive: c.cognitive || 'Normal',
+          functionalStatus: (function () {
+            var fs = c.functionalStatus || c.cognitive || '';
+            var allowed = ['Independent', 'Standby Assist', '1 Mild Assist', '2 Mod Assist'];
+            if (allowed.indexOf(fs) !== -1) return fs;
+            // legacy cognitive → rough map (optional)
+            if (fs === 'Normal') return 'Independent';
+            if (fs === 'MCI') return 'Standby Assist';
+            if (fs === 'Major NCD') return '1 Mild Assist';
+            if (fs === 'Dementia') return '2 Mod Assist';
+            return 'Independent';
+          })(),
           ptTraining: pt,
           assistiveDevice: device,
           status: status,
@@ -1371,8 +1381,13 @@
       if (s === 'discharged') return '<span class="badge badge-discharged">已退會</span>';
       return '<span class="badge badge-ok">正常</span>';
     }
-    function cogBadge(level) {
-      var map = { 'Normal': 'badge-normal', 'MCI': 'badge-mci', 'Major NCD': 'badge-major', 'Dementia': 'badge-dementia' };
+    function funcBadge(level) {
+      var map = {
+        'Independent': 'badge-independent',
+        'Standby Assist': 'badge-standby',
+        '1 Mild Assist': 'badge-mild',
+        '2 Mod Assist': 'badge-mod'
+      };
       return '<span class="badge ' + (map[level] || '') + '">' + (level || '—') + '</span>';
     }
     function ynBadge(v) {
@@ -1416,7 +1431,7 @@
       var name = document.getElementById('caseName').value.trim();
       var admissionDate = document.getElementById('admissionDate').value;
       var icpDate = document.getElementById('icpDate').value;
-      var cognitive = document.getElementById('cognitive').value;
+      var functionalStatus = document.getElementById('functionalStatus').value;
       var ptTraining = document.getElementById('ptTraining').value;
       var assistiveDevice = document.getElementById('assistiveDevice').value;
       if (!name || !admissionDate || !icpDate) {
@@ -1434,7 +1449,7 @@
         }
         cases[idx] = Object.assign({}, cases[idx], {
           name: name, admissionDate: admissionDate, icpDate: icpDate,
-          cognitive: cognitive, ptTraining: ptTraining, assistiveDevice: assistiveDevice,
+          functionalStatus: functionalStatus, ptTraining: ptTraining, assistiveDevice: assistiveDevice,
           status: isDisc ? 'discharged' : 'active',
           dischargedMonth: isDisc ? dMonth : null,
           dischargedAt: isDisc ? (dMonth + '-01') : null,
@@ -1449,7 +1464,7 @@
         }
         cases.push({
           id: uid(), name: name, admissionDate: admissionDate, icpDate: icpDate,
-          cognitive: cognitive, ptTraining: ptTraining, assistiveDevice: assistiveDevice,
+          functionalStatus: functionalStatus, ptTraining: ptTraining, assistiveDevice: assistiveDevice,
           status: 'active',
           assessmentHistory: [],
           createdAt: new Date().toISOString(),
@@ -1469,7 +1484,7 @@
       document.getElementById('caseName').value = c.name;
       document.getElementById('admissionDate').value = c.admissionDate;
       document.getElementById('icpDate').value = c.icpDate;
-      document.getElementById('cognitive').value = c.cognitive;
+      document.getElementById('functionalStatus').value = c.functionalStatus || 'Independent';
       document.getElementById('ptTraining').value = c.ptTraining;
       document.getElementById('assistiveDevice').value = c.assistiveDevice;
       var discGroup = document.getElementById('dischargeMonthGroup');
@@ -1833,12 +1848,12 @@
 
     function renderTable() {
       try {
-        var cogFilter = '';
+        var funcFilter = '';
         var search = '';
         try {
-          var fc = document.getElementById('filterCognitive');
+          var fc = document.getElementById('filterFunctional');
           var sn = document.getElementById('searchName');
-          if (fc && fc.value) cogFilter = fc.value;
+          if (fc && fc.value) funcFilter = fc.value;
           if (sn) {
             var rawSearch = (sn.value || '').trim();
             if (isJunkSearch(rawSearch)) {
@@ -1873,8 +1888,8 @@
           list = list.filter(isActive);
         }
 
-        if (cogFilter) {
-          list = list.filter(function (c) { return c && c.cognitive === cogFilter; });
+        if (funcFilter) {
+          list = list.filter(function (c) { return c && c.functionalStatus === funcFilter; });
         }
         if (search) {
           list = list.filter(function (c) {
@@ -1944,7 +1959,7 @@
             '<td>' + (isActive(c) ? formatDate(due) : '—') + '</td>' +
             '<td>' + statusLabel(status) + '</td>' +
             '<td>' + (isActive(c) ? '—' : formatDischargeMonth(dMonthShow)) + '</td>' +
-            '<td>' + cogBadge(c.cognitive) + '</td>' +
+            '<td>' + funcBadge(c.functionalStatus) + '</td>' +
             '<td>' + ynBadge(c.ptTraining) + '</td>' +
             '<td>' + ynBadge(c.assistiveDevice) + '</td>' +
             '<td class="no-print" style="white-space:nowrap;">' +
@@ -2229,22 +2244,27 @@
     function renderCharts() {
       var active = cases.filter(isActive);
       var total = active.length;
-      var cogCounts = { Normal: 0, MCI: 0, 'Major NCD': 0, Dementia: 0 };
+      var funcCounts = {
+        'Independent': 0,
+        'Standby Assist': 0,
+        '1 Mild Assist': 0,
+        '2 Mod Assist': 0
+      };
       var ptCounts = { Yes: 0, No: 0 };
       var devCounts = { Yes: 0, No: 0 };
       active.forEach(function (c) {
-        if (cogCounts[c.cognitive] !== undefined) cogCounts[c.cognitive]++;
+        if (funcCounts[c.functionalStatus] !== undefined) funcCounts[c.functionalStatus]++;
         if (ptCounts[c.ptTraining] !== undefined) ptCounts[c.ptTraining]++;
         if (devCounts[c.assistiveDevice] !== undefined) devCounts[c.assistiveDevice]++;
       });
       var opts = makePieOptions(total);
 
-      if (charts.cognitive) charts.cognitive.destroy();
-      charts.cognitive = new Chart(document.getElementById('chartCognitive'), {
+      if (charts.functional) charts.functional.destroy();
+      charts.functional = new Chart(document.getElementById('chartFunctional'), {
         type: 'pie',
         data: {
-          labels: Object.keys(cogCounts),
-          datasets: [{ data: Object.values(cogCounts), backgroundColor: COLORS.cognitive, borderWidth: 2, borderColor: '#fff' }]
+          labels: Object.keys(funcCounts),
+          datasets: [{ data: Object.values(funcCounts), backgroundColor: COLORS.functional, borderWidth: 2, borderColor: '#fff' }]
         },
         options: opts
       });
@@ -2718,7 +2738,7 @@
         boxes[j].style.height = '280px';
       }
       try {
-        if (charts.cognitive) charts.cognitive.resize();
+        if (charts.functional) charts.functional.resize();
         if (charts.pt) charts.pt.resize();
         if (charts.device) charts.device.resize();
       } catch (e) {}
@@ -2736,7 +2756,7 @@
           boxes[j].style.height = '';
         }
         try {
-          if (charts.cognitive) charts.cognitive.resize();
+          if (charts.functional) charts.functional.resize();
           if (charts.pt) charts.pt.resize();
           if (charts.device) charts.device.resize();
         } catch (e2) {}
@@ -2748,9 +2768,9 @@
     }
 
     function exportCSV() {
-      var headers = ['姓名', '入會日期', 'ICP Date', '認知水平', 'PT Training', '使用輔助器材', '狀態', '退會年月'];
+      var headers = ['姓名', '入會日期', 'ICP Date', '功能狀態', 'PT Training', '使用輔助器材', '狀態', '退會年月'];
       var rows = cases.map(function (c) {
-        return [c.name, c.admissionDate, c.icpDate, c.cognitive, c.ptTraining, c.assistiveDevice,
+        return [c.name, c.admissionDate, c.icpDate, c.functionalStatus, c.ptTraining, c.assistiveDevice,
           isActive(c) ? '在籍' : '已退會', (c.dischargedMonth || (c.dischargedAt ? String(c.dischargedAt).slice(0, 7) : '')) || ''];
       });
       var csv = [headers].concat(rows).map(function (r) {
@@ -2800,7 +2820,16 @@
               id: uid(), name: name,
               admissionDate: cols[1].trim(),
               icpDate: cols[2].trim() || cols[1].trim(),
-              cognitive: cols[3].trim() || 'Normal',
+              functionalStatus: (function () {
+                var v = cols[3].trim();
+                var allowed = ['Independent', 'Standby Assist', '1 Mild Assist', '2 Mod Assist'];
+                if (allowed.indexOf(v) !== -1) return v;
+                if (v === 'Normal') return 'Independent';
+                if (v === 'MCI') return 'Standby Assist';
+                if (v === 'Major NCD') return '1 Mild Assist';
+                if (v === 'Dementia') return '2 Mod Assist';
+                return 'Independent';
+              })(),
               ptTraining: cols[4].trim() === 'Yes' ? 'Yes' : 'No',
               assistiveDevice: cols[5].trim() === 'Yes' ? 'Yes' : 'No',
               status: isDischarged ? 'discharged' : 'active',
@@ -2841,7 +2870,7 @@
       e.stopPropagation();
       setLetterFilter(btn.getAttribute('data-letter') || '');
     });
-    document.getElementById('filterCognitive').addEventListener('change', function () { renderTable(); });
+    document.getElementById('filterFunctional').addEventListener('change', function () { renderTable(); });
     document.getElementById('searchName').addEventListener('input', function () { renderTable(); });
 
     document.getElementById('bookingCaseSearch').addEventListener('focus', function () { openCaseCombo(); });
