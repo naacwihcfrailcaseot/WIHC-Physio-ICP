@@ -1474,5 +1474,15 @@
       "note": ""
     }
   ],
-  "bookings": []
+  "bookings": [
+    {
+      "id": "mwd2rmn80st7fi",
+      "deviceId": "mwd2qe4xukfwec",
+      "caseId": "mtgzvw458t1phe",
+      "weekday": "1",
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "note": "彩雲"
+    }
+  ]
 }
