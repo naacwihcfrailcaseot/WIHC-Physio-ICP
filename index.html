@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>物理治療個案資料庫 Physio Case Database</title>
+  <title>物理治療 個案資料庫 Case Database</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -542,7 +542,7 @@
   <header>
     <div class="header-row">
       <div>
-        <h1>物理治療個案資料庫 Physio Case Database</h1>
+        <h1>物理治療 個案資料庫 Case Database</h1>
         <p>最高服務量 72 人 · 每年 ICP 覆核 · 覆核期限前一個月必須完成</p>
       </div>
       <div class="header-actions">
@@ -868,6 +868,7 @@
               <option value="6MWT">6MWT (6-Minute Walk Test)</option>
               <option value="Tinetti">Tinetti</option>
               <option value="Timed Chair Stand">Timed Chair Stand</option>
+              <option value="EMS">EMS (Elderly Mobility Scale)</option>
               <option value="N/A">N/A（今次無此項評估）</option>
               <option value="other">other（自訂名稱）</option>
             </select>
@@ -963,7 +964,7 @@
       line: ['#9A7B0A', '#B8860B', '#C05621', '#2C7A7B', '#805AD5', '#C53030']
     };
 
-    var COG_TOOLS = ['Berg Balance Scale', 'TUG', '6MWT', 'Tinetti', 'Timed Chair Stand', 'N/A', 'other'];
+    var COG_TOOLS = ['Berg Balance Scale', 'TUG', '6MWT', 'Tinetti', 'Timed Chair Stand', 'EMS', 'N/A', 'other'];
 
     function getToken() { return (localStorage.getItem(TOKEN_KEY) || '').trim(); }
     function setToken(t) {
