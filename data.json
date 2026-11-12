@@ -1467,6 +1467,12 @@
       "updatedAt": "2026-10-30T06:28:16.458Z"
     }
   ],
-  "devices": [],
+  "devices": [
+    {
+      "id": "mwd2qe4xukfwec",
+      "name": "按摩筆1",
+      "note": ""
+    }
+  ],
   "bookings": []
 }
